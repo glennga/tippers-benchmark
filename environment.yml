@@ -1,0 +1,11 @@
+name: tippers-benchmark-env
+
+channels:
+  - plotly
+  - defaults
+  - anaconda
+
+dependencies:
+  - python=3.7
+  - postgresql
+  - mysql
