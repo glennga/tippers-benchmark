@@ -3,19 +3,33 @@ A concurrent transaction simulator that mimics a real life transaction workload 
 system.
 
 ## Setup
-1. First, install Anaconda: https://docs.anaconda.com/anaconda/install/
-2. Next, we want to create a Python virtual environment as well as install PostgreSQL and MySQL-- the databases we wish 
-to test. Run the following commands: 
+1. First and foremost, verify that you have the following: MySQL (version ___ was used), PostgreSQL (version ____ was used), and Anaconda.
+2. Next, we want to create a Python virtual environment for testing. Run the following commands: 
 
-    ```bash
-    cd tippers-benchmark
-    conda env create -f environment.yml
-    conda activate tippers-benchmark-env
+     ```bash
+     cd tippers-benchmark
+     conda env create -f environment.yml
+     conda activate tippers-benchmark-env
+     ```
+
+3. Download the _reorganized_ project files. From the project source, these have been sorted and modified to work with our simulator.
+
+    **PUT IN NEW LINK HERE**
+
+    Unzip the folder, and copy the sub-folders `data` and `queries` to the `resources` folder. You should now have the following project structure:
     ```
-
-3. Download the project files (DDLs and DMLs) from the project website: 
-
-    https://drive.google.com/open?id=1Z3_8AK3NHjecnZsWlAf91uxAdf6Y0H70 
-
-    Unzip the folder, and put this in the same path as this repository. Do not change the folder name from `project1`.
+    tippers-benchmark
+    |- resources
+       |- create.sql
+       |- drop.sql
+       |- data
+       |- queries
+    |- ...
+    ```
+4. Create a MySQL instance with the following options (TODO: take out??). Start your instance.
+5. Create a PostgreSQL instance with the following options (TODO: take out??). Start your instance.
+6. Run the DDL `create.sql` in the `resources` folder for both Postgres and MySQL.
     
+    ```bash
+    
+    ```

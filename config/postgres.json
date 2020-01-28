@@ -1,0 +1,7 @@
+{
+  "user": "some_user",
+  "password": "some_password",
+  "host": "localhost",
+  "port": "some_port",
+  "database": "some_database"
+}
