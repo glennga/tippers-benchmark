@@ -19,9 +19,26 @@ analyzer() {
     echo "Not implemented."
 }
 
+deleter() {
+    echo "Not implemented."
+}
+
 if [[ $# -lt 1 ]]; then
-    echo "Usage: launcher.sh -[i/a/r/o]"
+    echo "Usage: launcher.sh -[i/a/r/o/d]"
     exit 1
+fi
+
+# If given, verify that the user wants to delete all tables in both MySQL and Postgres before proceeding.
+if [[ $@ == *-d* ]]; then
+    echo "You have chosen to delete all experiment tables in MySQL and Postgres."
+    printf "Please enter [y/n] to confirm: "
+    while read options; do
+        case ${options} in
+            y) deleter; break ;;
+            n) exit 1; break;;
+            *) printf "Invalid input. Please enter [y/n] to confirm: ";;
+        esac
+    done
 fi
 
 # Perform the initialization if specified.
@@ -52,3 +69,4 @@ fi
 if [[ $@ == *-a* ]]; then
     analyzer
 fi
+
