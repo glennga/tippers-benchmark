@@ -12,6 +12,8 @@ observer() {
 }
 
 runner() {
+    sleep 0.5 # Wait for analyzer to run first...
+
     echo "Not implemented."
 }
 

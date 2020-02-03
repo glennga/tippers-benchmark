@@ -2,5 +2,6 @@
   "username": "some_user",
   "password": "some_password",
   "host": "localhost",
-  "database": "some_database"
+  "database": "some_database",
+  "schema": "some_schema"
 }

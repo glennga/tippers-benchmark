@@ -197,7 +197,7 @@ class _PostgresObserver(_Observer):
 class _MySQLObserver(_Observer):
     """ https://www.datadoghq.com/blog/collecting-mysql-statistics-and-metrics/ """
 
-    def __init__(self, results_file: str, user: str, password: str, host: str) -> None:
+    def __init__(self, results_file: str, user: str, password: str, host: str, schema: str) -> None:
         """
         :param results_file: File to log result tuples to (SQLite).
         :param user: Username to use for connection.
@@ -206,7 +206,9 @@ class _MySQLObserver(_Observer):
         """
         # Establish our MySQL connection. Pass any errors up to the factory method.
         self.mysql_conn = get_mysql_connection(user, password, host, 'sys')
-        self.postgres_cur = self.mysql_conn.cursor()
+        self.mysql_cur = self.mysql_conn.cursor()
+        self.working_host = host
+        self.working_schema = schema
 
         # Establish our results file connection.
         self.results_conn = get_results_connection(results_file=results_file)
@@ -222,11 +224,140 @@ class _MySQLObserver(_Observer):
             );
         """)
         self.results_cur.execute("""
-            CREATE TABLE IF NOT EXISTS MySQLStatistics
-        """) # TODO: FINISH THE MYSQL STATS SCHEMA
+            CREATE TABLE IF NOT EXISTS MySQLStatisticsOnHost (
+                measurement_time DATETIME,
+                statements INTEGER,
+                statement_latency TEXT,
+                statement_avg_latency TEXT,
+                statement_lock_latency TEXT,
+                statement_rows_sent INTEGER,
+                statement_rows_examined INTEGER,
+                statement_rows_affected INTEGER,
+                table_scans INTEGER,
+                file_ios INTEGER,
+                file_io_latency TEXT,
+                current_memory TEXT,
+                total_memory_allocated TEXT,
+                FOREIGN KEY(measurement_time) REFERENCES MySQLStatisticsParent(measurement_time)
+            );
+        """)
+        self.results_cur.execute("""
+            CREATE TABLE IF NOT EXISTS MySQLStatisticsOnTable (
+                measurement_time DATETIME,
+                relation_name TEXT,
+                total_latency INTEGER,
+                rows_fetched INTEGER,
+                fetch_latency INTEGER,
+                rows_inserted INTEGER,
+                rows_updated INTEGER,
+                rows_deleted INTEGER,
+                io_read_requests INTEGER,
+                io_read INTEGER,
+                io_read_latency INTEGER,
+                io_write_requests INTEGER,
+                io_write INTEGER,
+                io_write_latency INTEGER,
+                io_misc_requests INTEGER,
+                io_misc_latency INTEGER,
+                FOREIGN KEY(measurement_time) REFERENCES MySQLStatisticsParent(measurement_time)
+            );
+        """)
+        self.results_cur.execute("""
+            CREATE TABLE IF NOT EXISTS MySQLStatisticsOnIndex (
+                measurement_time DATETIME,
+                relation_name TEXT,
+                index_name TEXT,
+                rows_selected INTEGER,
+                select_latency INTEGER,
+                rows_inserted INTEGER,
+                insert_latency INTEGER,
+                rows_updated INTEGER,
+                update_latency INTEGER,
+                rows_deleted INTEGER,
+                delete_latency INTEGER,
+                FOREIGN KEY(measurement_time) REFERENCES MySQLStatisticsParent(measurement_time)
+            );
+        """)
+        self.results_cur.execute("""
+            CREATE TABLE IF NOT EXISTS MySQLStatisticsOnLock (
+                measurement_time DATETIME,
+                relation_name TEXT,
+                wait_start DATETIME,
+                wait_age TIME,
+                lock_type TEXT,
+                waiting_transaction_start DATETIME,
+                waiting_transaction_age TIME,
+                waiting_transaction_rows_locked INTEGER,
+                waiting_transaction_rows_modified INTEGER,
+                blocking_transaction_start DATETIME,
+                blocking_transaction_age TIME,
+                waiting_query TEXT,
+                blocking_query TEXT,
+                FOREIGN KEY(measurement_time) REFERENCES MySQLStatisticsParent(measurement_time)
+            );
+        """)
 
-    def log_action(self) -> None: # TODO: FINISH THE MYSQL LOGGING
-        pass
+    def log_action(self) -> None:
+        # Perform a sample.
+        self.mysql_cur.execute(f"""
+            SELECT CAST(HS.statements AS SIGNED), HS.statement_latency, HS.statement_avg_latency, SL.lock_latency, 
+                   CAST(SL.rows_sent AS SIGNED), CAST(SL.rows_examined AS SIGNED), CAST(SL.rows_affected AS SIGNED), 
+                   CAST(HS.table_scans AS SIGNED), CAST(HS.file_ios AS SIGNED), HS.file_io_latency, HS.current_memory,
+                   HS.total_memory_allocated
+            FROM host_summary AS HS
+            INNER JOIN host_summary_by_statement_latency AS SL
+            ON HS.host = SL.host
+            WHERE HS.host = '{self.working_host}';
+        """)
+        on_host_results = self.mysql_cur.fetchone()
+        self.mysql_cur.execute(f"""
+            SELECT TS.table_name, TS.total_latency, TS.rows_fetched, TS.fetch_latency, TS.rows_inserted, 
+                   TS.rows_updated, TS.rows_deleted, CAST(TS.io_read_requests AS SIGNED), TS.io_read, 
+                   TS.io_read_latency, CAST(TS.io_write_requests AS SIGNED), TS.io_write, TS.io_write_latency, 
+                   CAST(TS.io_misc_requests AS SIGNED), TS.io_misc_latency
+            FROM schema_table_statistics AS TS
+            WHERE TS.table_schema = '{self.working_schema}';
+        """)
+        on_table_results = self.mysql_cur.fetchall()
+        self.mysql_cur.execute(f"""
+            SELECT XS.table_name, XS.index_name, XS.rows_selected, XS.select_latency, XS.rows_inserted,
+                   XS.insert_latency, XS.rows_updated, XS.update_latency, XS.rows_deleted, XS.delete_latency
+            FROM schema_index_statistics AS XS
+            WHERE XS.table_schema = '{self.working_schema}';
+        """)
+        on_index_results = self.mysql_cur.fetchall()
+        self.mysql_cur.execute("""
+            SELECT LW.wait_started, LW.wait_age, LW.locked_type, LW.waiting_trx_started, LW.waiting_trx_age,
+                   LW.waiting_trx_rows_locked, LW.waiting_trx_rows_modified, LW.blocking_trx_started,
+                   LW.blocking_trx_age, LW.waiting_query, LW.blocking_query
+            FROM innodb_lock_waits AS LW;
+        """)
+        on_lock_results = self.mysql_cur.fetchall()
+
+        # ... and log the sample.
+        sample_timestamp = self.get_timestamp()
+        self.results_cur.execute("""
+            INSERT INTO MySQLStatisticsParent
+            VALUES (?, ?)
+        """, [self.starting_timestamp, sample_timestamp])
+        self.results_cur.execute(f"""
+            INSERT INTO MySQLStatisticsOnHost
+            VALUES ({','.join('?' for _ in range(len(on_host_results) + 1))})
+        """, [sample_timestamp] + list(on_host_results))
+        self.results_cur.executemany(f"""
+            INSERT INTO MySQLStatisticsOnTable
+            VALUES ({','.join('?' for _ in range(len(on_table_results[0]) + 1))})
+        """, list(map(lambda a: [sample_timestamp] + list(a), on_table_results)))
+        if len(on_index_results) > 0:
+            self.results_cur.executemany(f"""
+            INSERT INTO MySQLStatisticsOnIndex
+            VALUES ({','.join('?' for _ in range(len(on_index_results[0]) + 1))})
+        """, list(map(lambda a: [sample_timestamp] + list(a), on_index_results)))
+        if len(on_lock_results) > 0:
+            self.results_cur.executemany(f"""
+             INSERT INTO MySQLStatisticsOnLock
+             VALUES ({','.join('?' for _ in range(len(on_lock_results[0]) + 1))})
+         """, list(map(lambda a: [sample_timestamp] + list(a), on_lock_results)))
 
     def end_logging(self) -> None:
         self.results_cur.execute('commit')
@@ -260,7 +391,7 @@ def _observer_factory(config_directory: str, database_option: str) -> _Observer:
                 database=postgres_json['database']
             )
         except Exception as e:
-            print(e)
+            print('Error in creating a PostgreSQL observer: ' + str(e))
             exit(1)
 
     else:
@@ -270,12 +401,13 @@ def _observer_factory(config_directory: str, database_option: str) -> _Observer:
         try:
             return _MySQLObserver(
                 results_file=results_json['observation-db'],
-                user=mysql_json['user'],
+                user=mysql_json['username'],
                 password=mysql_json['password'],
-                host=mysql_json['host']
+                host=mysql_json['host'],
+                schema=mysql_json['schema']
             )
         except Exception as e:
-            print(e)
+            print('Error in creating a MySQL observer: ' + str(e))
             exit(1)
 
 
