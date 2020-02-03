@@ -1,22 +1,26 @@
 #!/bin/bash
 
 initializer() {
-    mysql create.sql
+    echo "Not implemented."
 }
 
-analyzer() {
-    python3 analyzer.py \
+observer() {
+    python3 observer.py \
         postgres \
         false \
         --frequency 0.1
 }
 
 runner() {
-    python3 runner.py
+    echo "Not implemented."
+}
+
+analyzer() {
+    echo "Not implemented."
 }
 
 if [[ $# -lt 1 ]]; then
-    echo "Usage: launcher.sh -[i/a/r]"
+    echo "Usage: launcher.sh -[i/a/r/o]"
     exit 1
 fi
 
@@ -31,8 +35,8 @@ if [[ $@ == *-r* ]]; then
     runner_pid=$!
 fi
 
-# Finally, launch the analyzer. We send our input to a named pipe.
-if [[ $@ == *-a* ]] && [[ $@ == *-r* ]]; then
+# Now, launch the analyzer. We send our input to a named pipe.
+if [[ $@ == *-o* ]] && [[ $@ == *-r* ]]; then
     mkfifo /tmp/analyzer.fifo
     </tmp/analyzer.fifo tail -c +1 -f | analyzer > /dev/null &
     analyzer_pid=$!
@@ -44,4 +48,7 @@ if [[ $@ == *-a* ]] && [[ $@ == *-r* ]]; then
     wait ${analyzer_pid}
 fi
 
-
+# If desired, run the analyzer.
+if [[ $@ == *-a* ]]; then
+    analyzer
+fi
