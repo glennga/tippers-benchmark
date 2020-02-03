@@ -5,17 +5,19 @@ import psycopg2 as postgres
 import sqlite3
 
 
-def get_mysql_connection(user: str, password: str, host: str):
+def get_mysql_connection(user: str, password: str, host: str, database: str):
     """
     :param user: Username to use for connection.
     :param password: Password to use for connection.
     :param host: Host URI associated with connection.
+    :param database: MySQL database to use upon connecting.
     :return: A connection to some MySQL database.
     """
     return mysql.connect(
         user=user,
         passwd=password,
-        host=host
+        host=host,
+        database=database
     )
 
 

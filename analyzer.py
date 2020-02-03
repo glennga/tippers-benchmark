@@ -165,7 +165,7 @@ class _Postgres(_Database):
                    COALESCE(IO.idx_blks_hit, 0), COALESCE(IO.idx_blks_read, 0)
             FROM pg_stat_user_tables AS ST
             INNER JOIN pg_statio_user_tables AS IO
-            ON ST.relname = IO.relname
+            ON ST.relid = IO.relid
             LIMIT 1;
         """)
         on_tables_results = self.postgres_cur.fetchall()
@@ -195,9 +195,33 @@ class _Postgres(_Database):
 
 # noinspection SqlResolve
 class _MySQL(_Database):
-    def __init__(self, results_file: str) -> None:
-        self.conn = get_results_connection(results_file=results_file)
-        self.cur = self.conn.cursor()
+    def __init__(self, results_file: str, user: str, password: str, host: str) -> None:
+        """
+        :param results_file: File to log result tuples to (SQLite).
+        :param user: Username to use for connection.
+        :param password: Password to use for connection.
+        :param host: Host URI associated with connection.
+        """
+        # Establish our MySQL connection. Pass any errors up to the factory method.
+        self.mysql_conn = get_mysql_connection(user, password, host, 'sys')
+        self.postgres_cur = self.mysql_conn.cursor()
+
+        # Establish our results file connection.
+        self.results_conn = get_results_connection(results_file=results_file)
+        self.results_conn.isolation_level = None
+        self.results_cur = self.results_conn.cursor()
+        self.results_cur.execute("begin")
+
+        # Create our tables.
+        self.results_cur.execute("""
+            CREATE TABLE IF NOT EXISTS MySQLStatisticsParent (
+                start_of_analysis DATETIME NOT NULL,
+                measurement_time DATETIME PRIMARY KEY
+            );
+        """)
+        self.results_cur.execute("""
+            CREATE TABLE IF NOT EXISTS MySQLStatistics
+        """)
 
     def log_action(self) -> None:
         pass
@@ -207,6 +231,12 @@ class _MySQL(_Database):
 
 
 def _analyzer_factory(config_directory: str, database_option: str) -> _Database:
+    """
+    :param config_directory: Location of the 'results.json', 'postgres.json', and 'mysql.json' config files.
+    :param database_option: Type of analyzer to producer.
+    :return: A _Database instance, dependent on the database_option.
+    """
+
     with open(config_directory + '/results.json', 'r') as results_config_file:
         results_json = json.load(results_config_file)
 
@@ -233,7 +263,10 @@ def _analyzer_factory(config_directory: str, database_option: str) -> _Database:
 
         try:
             return _MySQL(
-                results_file=results_json['analysis-db']
+                results_file=results_json['analysis-db'],
+                user=mysql_json['user'],
+                password=mysql_json['password'],
+                host=mysql_json['host']
             )
         except Exception as e:
             print(e)

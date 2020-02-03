@@ -1,5 +1,6 @@
 {
   "username": "some_user",
   "password": "some_password",
-  "host": "localhost"
+  "host": "localhost",
+  "database": "some_database"
 }
