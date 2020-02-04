@@ -5,7 +5,7 @@ import psycopg2 as postgres
 import sqlite3
 
 
-def get_mysql_connection(user: str, password: str, host: str, database: str):
+def get_mysql_connection(user: str, password: str, host: str, database: str = None):
     """
     :param user: Username to use for connection.
     :param password: Password to use for connection.
@@ -13,15 +13,22 @@ def get_mysql_connection(user: str, password: str, host: str, database: str):
     :param database: MySQL database to use upon connecting.
     :return: A connection to some MySQL database.
     """
-    return mysql.connect(
-        user=user,
-        passwd=password,
-        host=host,
-        database=database
-    )
+    if database is not None:
+        return mysql.connect(
+            user=user,
+            passwd=password,
+            host=host,
+            database=database
+        )
+    else:
+        return mysql.connect(
+            user=user,
+            passwd=password,
+            host=host
+        )
 
 
-def get_postgres_connection(user: str, password: str, host: str, port: int, database: str):
+def get_postgres_connection(user: str, password: str, host: str, port: int, database: str = None):
     """
     :param user: Username to use for connection.
     :param password: Password to use for connection.
@@ -30,13 +37,21 @@ def get_postgres_connection(user: str, password: str, host: str, port: int, data
     :param database: PostgreSQL database to use upon connecting.
     :return: A connection to some PostgreSQL database.
     """
-    return postgres.connect(
-        user=user,
-        password=password,
-        host=host,
-        port=port,
-        database=database
-    )
+    if database is not None:
+        return postgres.connect(
+            user=user,
+            password=password,
+            host=host,
+            port=port,
+            database=database
+        )
+    else:
+        return postgres.connect(
+            user=user,
+            password=password,
+            host=host,
+            port=port
+        )
 
 
 def get_results_connection(results_file: str):

@@ -18,15 +18,17 @@ def _teardown_postgres(config_directory: str, resource_directory: str) -> None:
             user=postgres_json['user'],
             password=postgres_json['password'],
             host=postgres_json['host'],
-            port=int(postgres_json['port']),
-            database=postgres_json['database']
+            port=int(postgres_json['port'])
         )
+        postgres_conn.autocommit = True
         postgres_cur = postgres_conn.cursor()
 
         with open(resource_directory + '/drop.sql') as create_ddl_file:
             for statement in create_ddl_file.read().split(';'):
                 if not statement.isspace():
                     postgres_cur.execute(statement)
+
+        postgres_cur.execute(f""" DROP DATABASE IF EXISTS {postgres_json['database']}; """)
         postgres_conn.commit()
 
     except Exception as e:
@@ -55,6 +57,8 @@ def _teardown_mysql(config_directory: str, resource_directory: str) -> None:
             for statement in create_ddl_file.read().split(';'):
                 if not statement.isspace():
                     mysql_cur.execute(statement)
+
+        mysql_cur.execute(f""" DROP DATABASE IF EXISTS {mysql_json['database']}; """)
         mysql_conn.commit()
 
     except Exception as e:
@@ -74,4 +78,4 @@ if __name__ == '__main__':
     else:
         _teardown_mysql(args.config_path, args.resource_path)
 
-    print(f"[{args.database}] experiment tables have been destroyed.")
+    print(f"[{args.database}] experiment database has been destroyed.")

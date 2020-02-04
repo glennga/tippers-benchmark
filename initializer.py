@@ -14,20 +14,31 @@ def _initialize_postgres(config_directory: str, resource_directory: str) -> None
         postgres_json = json.load(postgres_config_file)
 
     try:
-        postgres_conn = get_postgres_connection(
+        postgres_conn_1 = get_postgres_connection(
+            user=postgres_json['user'],
+            password=postgres_json['password'],
+            host=postgres_json['host'],
+            port=int(postgres_json['port'])
+        )
+        postgres_conn_1.autocommit = True
+        postgres_conn_1.cursor().execute(f"""CREATE DATABASE {postgres_json['database']};""")
+        postgres_conn_1.commit()
+        postgres_conn_1.close()
+
+        postgres_conn_2 = get_postgres_connection(
             user=postgres_json['user'],
             password=postgres_json['password'],
             host=postgres_json['host'],
             port=int(postgres_json['port']),
             database=postgres_json['database']
         )
-        postgres_cur = postgres_conn.cursor()
+        postgres_cur_2 = postgres_conn_2.cursor()
 
         with open(resource_directory + '/create.sql') as create_ddl_file:
             for statement in create_ddl_file.read().split(';'):
                 if not statement.isspace() and statement != '':
-                    postgres_cur.execute(statement)
-        postgres_conn.commit()
+                    postgres_cur_2.execute(statement)
+        postgres_conn_2.commit()
 
     except Exception as e:
         print('Error in initializing Postgres: ' + str(e))
@@ -43,19 +54,28 @@ def _initialize_mysql(config_directory: str, resource_directory: str) -> None:
         mysql_json = json.load(mysql_config_file)
 
     try:
-        mysql_conn = get_mysql_connection(
+        mysql_conn_1 = get_mysql_connection(
+            user=mysql_json['username'],
+            password=mysql_json['password'],
+            host=mysql_json['host'],
+        )
+        mysql_conn_1.cursor().execute(f""" CREATE DATABASE {mysql_json['database']};""")
+        mysql_conn_1.commit()
+        mysql_conn_1.close()
+
+        mysql_conn_2 = get_mysql_connection(
             user=mysql_json['username'],
             password=mysql_json['password'],
             host=mysql_json['host'],
             database=mysql_json['database']
         )
-        mysql_cur = mysql_conn.cursor()
+        mysql_cur_2 = mysql_conn_2.cursor()
 
         with open(resource_directory + '/create.sql') as create_ddl_file:
             for statement in create_ddl_file.read().split(';'):
                 if not statement.isspace():
-                    mysql_cur.execute(statement)
-        mysql_conn.commit()
+                    mysql_cur_2.execute(statement)
+        mysql_conn_2.commit()
 
     except Exception as e:
         print('Error in initializing MySQL: ' + str(e))
