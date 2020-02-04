@@ -7,13 +7,18 @@ from shared import *
 
 def _initialize_postgres(config_directory: str, resource_directory: str) -> None:
     """
+    https://dev.to/pythonmeister/basic-postgresql-tuning-parameters-281
+
     :param config_directory: Location of the 'postgres.json' config file.
     :param resource_directory: Location of the 'create.sql' DDL.
     """
+    with open(config_directory + '/general.json', 'r') as general_config_file:
+        general_json = json.load(general_config_file)
     with open(config_directory + '/postgres.json', 'r') as postgres_config_file:
         postgres_json = json.load(postgres_config_file)
 
     try:
+        # Create the database.
         postgres_conn_1 = get_postgres_connection(
             user=postgres_json['user'],
             password=postgres_json['password'],
@@ -25,6 +30,7 @@ def _initialize_postgres(config_directory: str, resource_directory: str) -> None
         postgres_conn_1.commit()
         postgres_conn_1.close()
 
+        # Set the maximum MPL.
         postgres_conn_2 = get_postgres_connection(
             user=postgres_json['user'],
             password=postgres_json['password'],
@@ -32,8 +38,12 @@ def _initialize_postgres(config_directory: str, resource_directory: str) -> None
             port=int(postgres_json['port']),
             database=postgres_json['database']
         )
+        postgres_conn_2.autocommit = True
         postgres_cur_2 = postgres_conn_2.cursor()
+        postgres_cur_2.execute(f""" ALTER SYSTEM SET max_connections = {general_json['maximum-mpl']}; """)
+        postgres_cur_2.execute(f""" ALTER SYSTEM SET max_prepared_transactions = {general_json['maximum-mpl']}; """)
 
+        # Create the tables.
         with open(resource_directory + '/create.sql') as create_ddl_file:
             for statement in create_ddl_file.read().split(';'):
                 if not statement.isspace() and statement != '':
@@ -50,10 +60,13 @@ def _initialize_mysql(config_directory: str, resource_directory: str) -> None:
     :param config_directory: Location of the 'mysql.json' config file.
     :param resource_directory: Location of the 'create.sql' DDL.
     """
+    with open(config_directory + '/general.json', 'r') as general_config_file:
+        general_json = json.load(general_config_file)
     with open(config_directory + '/mysql.json', 'r') as mysql_config_file:
         mysql_json = json.load(mysql_config_file)
 
     try:
+        # Create the database.
         mysql_conn_1 = get_mysql_connection(
             user=mysql_json['username'],
             password=mysql_json['password'],
@@ -63,6 +76,7 @@ def _initialize_mysql(config_directory: str, resource_directory: str) -> None:
         mysql_conn_1.commit()
         mysql_conn_1.close()
 
+        # Set the maximum MPL.
         mysql_conn_2 = get_mysql_connection(
             user=mysql_json['username'],
             password=mysql_json['password'],
@@ -70,7 +84,9 @@ def _initialize_mysql(config_directory: str, resource_directory: str) -> None:
             database=mysql_json['database']
         )
         mysql_cur_2 = mysql_conn_2.cursor()
+        mysql_cur_2.execute(f""" SET PERSIST innodb_thread_concurrency = {general_json['maximum-mpl']}; """)
 
+        # Create the tables.
         with open(resource_directory + '/create.sql') as create_ddl_file:
             for statement in create_ddl_file.read().split(';'):
                 if not statement.isspace():

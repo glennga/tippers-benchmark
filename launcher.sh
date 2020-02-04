@@ -13,8 +13,7 @@ initializer() {
 observer() {
     python3 observer.py \
         postgres \
-        false \
-        --frequency 0.1
+        false
 }
 
 runner() {

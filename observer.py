@@ -367,23 +367,20 @@ class _MySQLObserver(_Observer):
         self.mysql_conn.close()
 
 
-def _observer_factory(config_directory: str, database_option: str) -> _Observer:
+def _observer_factory(config_directory: str, database_option: str, results_file: str) -> _Observer:
     """
-    :param config_directory: Location of the 'results.json', 'postgres.json', and 'mysql.json' config files.
+    :param config_directory: Location of the 'general.json', 'postgres.json', and 'mysql.json' config files.
     :param database_option: Type of observer to producer.
+    :param results_file: Location of the results database to log to.
     :return: A _Database instance, dependent on the database_option.
     """
-
-    with open(config_directory + '/results.json', 'r') as results_config_file:
-        results_json = json.load(results_config_file)
-
     if database_option == 'postgres':
         with open(config_directory + '/postgres.json', 'r') as postgres_config_file:
             postgres_json = json.load(postgres_config_file)
 
         try:
             return _PostgresObserver(
-                results_file=results_json['observation-db'],
+                results_file=results_file,
                 user=postgres_json['user'],
                 password=postgres_json['password'],
                 host=postgres_json['host'],
@@ -400,7 +397,7 @@ def _observer_factory(config_directory: str, database_option: str) -> _Observer:
 
         try:
             return _MySQLObserver(
-                results_file=results_json['observation-db'],
+                results_file=results_file,
                 user=mysql_json['username'],
                 password=mysql_json['password'],
                 host=mysql_json['host'],
@@ -417,15 +414,15 @@ if __name__ == '__main__':
     help_strings = {
         "database": 'Which database to run experiments on.',
         "oneshot": 'If true, we collect our statistics once. Otherwise, we run our experiments until user input.',
-        "frequency": 'Frequency of sampling, measured in actions / minute. Only applies if oneshot is false.',
         "config_path": 'Location of configuration files.'
     }
     parser.add_argument('database', type=str, choices=['postgres', 'mysql'], help=help_strings['database'])
     parser.add_argument('oneshot', type=str, choices=['true', 'false'], help=help_strings['oneshot'])
-    parser.add_argument('--frequency', type=float, help=help_strings['frequency'])
     parser.add_argument('--config_path', type=str, default='config', help=help_strings['config_path'])
     args = parser.parse_args()
 
-    observer = _observer_factory(args.config_path, args.database)
-    observer.begin_logging(args.oneshot, args.frequency)
+    with open(args.config_path + '/general.json', 'r') as general_config_file:
+        general_json = json.load(general_config_file)
+    observer = _observer_factory(args.config_path, args.database, general_json['observation-db'])
+    observer.begin_logging(args.oneshot, general_json['observation-frequency'])
     observer.end_logging()
