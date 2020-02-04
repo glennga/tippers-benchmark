@@ -1,7 +1,7 @@
 #!/bin/bash
 
 initializer() {
-    mkdir results # Assuming that we are starting in the repo directory.
+    mkdir -p results # Assuming that we are starting in the repo directory.
 
     python3 initializer.py \
         postgres
@@ -23,8 +23,12 @@ runner() {
     echo "Not implemented."
 }
 
-deleter() {
-    echo "Not implemented."
+destructor() {
+    python3 destructor.py \
+        postgres
+
+    python3 destructor.py \
+        mysql
 }
 
 if [[ $# -lt 1 ]]; then
@@ -38,7 +42,7 @@ if [[ $@ == *-d* ]]; then
     printf "Please enter [y/n] to confirm: "
     while read options; do
         case ${options} in
-            y) deleter; break ;;
+            y) destructor; break ;;
             n) exit 1; break;;
             *) printf "Invalid input. Please enter [y/n] to confirm: ";;
         esac
@@ -56,7 +60,7 @@ if [[ $@ == *-r* ]]; then
     runner_pid=$!
 fi
 
-# Now, launch the observer. We send our input to a named pipe.
+# Last, launch the observer. We send our input to a named pipe.
 if [[ $@ == *-o* ]] && [[ $@ == *-r* ]]; then
     mkfifo /tmp/observer.fifo
     </tmp/observer.fifo tail -c +1 -f | observer > /dev/null &
