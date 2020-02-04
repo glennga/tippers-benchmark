@@ -1,6 +1,3 @@
-START TRANSACTION;
-BEGIN WORK;
-
 CREATE TABLE LOCATION
 (
     ID varchar(255) NOT NULL,
@@ -210,5 +207,3 @@ CREATE INDEX temp_timestamp_idx ON ThermometerObservation (timeStamp);
 
 CREATE INDEX presence_timestamp_idx ON PRESENCE (timeStamp);
 CREATE INDEX occupancy_timestamp_idx ON OCCUPANCY (timeStamp);
-
-COMMIT WORK;

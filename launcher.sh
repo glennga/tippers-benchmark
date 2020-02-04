@@ -1,7 +1,13 @@
 #!/bin/bash
 
 initializer() {
-    echo "Not implemented."
+    mkdir results # Assuming that we are starting in the repo directory.
+
+    python3 initializer.py \
+        postgres
+
+    python3 initializer.py \
+        mysql
 }
 
 observer() {
@@ -17,16 +23,12 @@ runner() {
     echo "Not implemented."
 }
 
-analyzer() {
-    echo "Not implemented."
-}
-
 deleter() {
     echo "Not implemented."
 }
 
 if [[ $# -lt 1 ]]; then
-    echo "Usage: launcher.sh -[i/a/r/o/d]"
+    echo "Usage: launcher.sh -[i/r/o/d]"
     exit 1
 fi
 
@@ -56,19 +58,13 @@ fi
 
 # Now, launch the observer. We send our input to a named pipe.
 if [[ $@ == *-o* ]] && [[ $@ == *-r* ]]; then
-    mkfifo /tmp/analyzer.fifo
-    </tmp/analyzer.fifo tail -c +1 -f | analyzer > /dev/null &
-    analyzer_pid=$!
+    mkfifo /tmp/observer.fifo
+    </tmp/observer.fifo tail -c +1 -f | observer > /dev/null &
+    observer_pid=$!
 
     wait ${runner_pid}
-    echo "\n" > /tmp/analyzer.fifo
-    echo > /tmp/analyzer.fifo
-    rm /tmp/analyzer.fifo
-    wait ${analyzer_pid}
+    echo "\n" > /tmp/observer.fifo
+    echo > /tmp/observer.fifo
+    rm /tmp/observer.fifo
+    wait ${observer_pid}
 fi
-
-# If desired, run the analyzer.
-if [[ $@ == *-a* ]]; then
-    analyzer
-fi
-

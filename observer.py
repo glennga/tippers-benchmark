@@ -412,7 +412,7 @@ def _observer_factory(config_directory: str, database_option: str) -> _Observer:
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Non-invasively collects data from the experiment runner.')
+    parser = argparse.ArgumentParser(description='Non-invasive collector of data from the experiment runner.')
 
     help_strings = {
         "database": 'Which database to run experiments on.',
