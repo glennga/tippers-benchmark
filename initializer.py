@@ -22,8 +22,10 @@ def initialize_postgres(config_directory: str) -> None:
             port=int(postgres_json['port'])
         )
         postgres_conn_1.autocommit = True
-        postgres_conn_1.cursor().execute(f"""CREATE DATABASE {postgres_json['database']};""")
-        postgres_conn_1.commit()
+        postgres_conn_1.cursor().execute(f""" CREATE DATABASE {postgres_json['database']};""")
+        postgres_conn_1.cursor().execute(f""" ALTER SYSTEM SET track_io_timing = on; """)
+        postgres_conn_1.cursor().execute(f""" ALTER SYSTEM SET log_statement_stats = on; """)
+        postgres_conn_1.cursor().execute(f""" ALTER SYSTEM SET log_executor_stats = on; """)
         postgres_conn_1.close()
 
         # Create the tables.

@@ -60,6 +60,8 @@ class _PostgresExperimentFactory(_GenericExperimentFactory):
             cur = conn.cursor()
             cur.execute(f""" ALTER SYSTEM SET max_connections = {working_mpl}; """)
             cur.execute(f""" ALTER SYSTEM SET max_prepared_transactions = {working_mpl}; """)
+            conn.close()
+
             func(*args, **kwargs)
 
         return _mpl_wrapper
@@ -122,6 +124,9 @@ class _MySQLExperimentFactory(_GenericExperimentFactory):
             )
             cur = conn.cursor()
             cur.execute(f""" SET PERSIST innodb_thread_concurrency = {working_mpl}; """)
+            conn.commit()
+            conn.close()
+
             func(*args, **kwargs)
 
         return _mpl_wrapper
@@ -174,11 +179,13 @@ if __name__ == '__main__':
         "database": 'Which database to run experiments on.',
         "experiment": "Which experiment to run. t=throughput, q=query, w=workload.",
         "concurrency": 'Type of concurrency experiment to run.',
+        "mpl": 'Multiprogramming level to run.',
         "config_path": 'Location of configuration files.'
     }
     parser.add_argument('database', type=str, choices=['postgres', 'mysql'], help=help_strings['database'])
     parser.add_argument('experiment', type=str, choices=['t', 'q', 'w'], help=help_strings['experiment'])
     parser.add_argument('concurrency', type=str, choices=['high', 'low'], help=help_strings['concurrency'])
+    parser.add_argument('mpl', type=int, help=help_strings['mpl'])
     parser.add_argument('--config_path', type=str, default='config', help=help_strings['config_path'])
     c_args = parser.parse_args()
 
@@ -200,5 +207,5 @@ if __name__ == '__main__':
     # Run our experiments. Each experiment is a function of MPL.
     with open(c_args.config_path + '/general.json', 'r') as general_config_file:
         general_json = json.load(general_config_file)
-    for mpl in general_json['testing-mpl']:
-        runner(c_args.config_path, general_json, int(mpl))
+    print(f"Running: experiment [{c_args.experiment}], {c_args.concurrency} concurrency, MPL {c_args.mpl}.")
+    runner(c_args.config_path, general_json, c_args.mpl)

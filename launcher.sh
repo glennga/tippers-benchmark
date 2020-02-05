@@ -21,6 +21,7 @@ fi
 # Start the experiments.
 if [[ $@ == *-x* ]]; then
     observer() {
+        rm /tmp/observer.fifo 2> /dev/null || true
         mkfifo /tmp/observer.fifo  # We send our input to a named pipe.
         </tmp/observer.fifo tail -c +1 -f | python3 observer.py ${database_opt} false > /dev/null &
         observer_pid=$!
@@ -33,14 +34,15 @@ if [[ $@ == *-x* ]]; then
     }
     runner() {
         sleep 0.5 # Wait for observer to run first...
-        python3 runner.py ${database_opt} $1 $2
+        python3 runner.py ${database_opt} $1 $2 $3
     }
 
     for concurrency in low high; do
         for experiment in t q w; do
-            echo "Running experiment: [${experiment}] on ${concurrency} concurrency."
-            runner ${experiment} ${concurrency} &
-            observer $!
+            for mpl in 1 2 3 4 5 6; do
+                runner ${experiment} ${concurrency} ${mpl} &
+                observer $!
+            done
         done
     done
 

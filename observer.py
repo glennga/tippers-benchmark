@@ -82,11 +82,9 @@ class _PostgresObserver(_Observer):
         """
         # Establish our Postgres connection. Pass any errors up to the factory method.
         self.postgres_conn = get_postgres_connection(user, password, host, port, database)
+        self.postgres_conn.autocommit = True
         self.postgres_cur = self.postgres_conn.cursor()
         self.working_database = database
-        self.postgres_cur.execute("""
-            SELECT pg_stat_reset();
-        """)
 
         # Establish our results file connection.
         self.results_conn = get_results_connection(results_file=results_file)
@@ -165,8 +163,7 @@ class _PostgresObserver(_Observer):
                    COALESCE(IO.idx_blks_hit, 0), COALESCE(IO.idx_blks_read, 0)
             FROM pg_stat_user_tables AS ST
             INNER JOIN pg_statio_user_tables AS IO
-            ON ST.relid = IO.relid
-            LIMIT 1;
+            ON ST.relid = IO.relid;
         """)
         on_tables_results = self.postgres_cur.fetchall()
 
