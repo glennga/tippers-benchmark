@@ -176,7 +176,7 @@ if __name__ == '__main__':
         "concurrency": 'Type of concurrency experiment to run.',
         "config_path": 'Location of configuration files.'
     }
-    parser.add_argument('database', type=str, nargs=1, choices=['postgres', 'mysql'], help=help_strings['database'])
+    parser.add_argument('database', type=str, choices=['postgres', 'mysql'], help=help_strings['database'])
     parser.add_argument('experiment', type=str, choices=['t', 'q', 'w'], help=help_strings['experiment'])
     parser.add_argument('concurrency', type=str, choices=['high', 'low'], help=help_strings['concurrency'])
     parser.add_argument('--config_path', type=str, default='config', help=help_strings['config_path'])
