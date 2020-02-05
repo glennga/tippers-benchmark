@@ -1,7 +1,7 @@
 {
-  "username": "some_user",
-  "password": "some_password",
+  "username": "root",
+  "password": "AutumnNeverFalls5",
   "host": "localhost",
-  "database": "some_database",
-  "schema": "some_schema"
+  "database": "tippers",
+  "schema": "tippers"
 }

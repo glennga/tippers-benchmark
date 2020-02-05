@@ -12,5 +12,7 @@
   "queries-high-concurrency": "resources/queries/high_concurrency/queries.txt",
 
   "observation-frequency": 0.1,
-  "testing-mpl": [1, 2, 3, 4, 5, 6]
+  "testing-mpl": [1, 2, 3, 4, 5, 6],
+  "testing-concurrency": ["low", "high"],
+  "testing-experiment": ["t", "q", "w"]
 }

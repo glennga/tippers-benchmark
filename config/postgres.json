@@ -1,7 +1,7 @@
 {
-  "user": "some_user",
-  "password": "some_password",
+  "user": "postgres",
+  "password": "FrappuccinoAppleData2",
   "host": "localhost",
-  "port": "some_port",
-  "database": "some_database"
+  "port": "5432",
+  "database": "tippers"
 }

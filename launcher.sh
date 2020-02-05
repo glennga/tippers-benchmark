@@ -37,9 +37,24 @@ if [[ $@ == *-x* ]]; then
         python3 runner.py ${database_opt} $1 $2 $3
     }
 
-    for concurrency in low high; do
-        for experiment in t q w; do
-            for mpl in 1 2 3 4 5 6; do
+    # Get our experiment parameters.
+    IFS=', ' read -r -a testing_concurrency \
+        <<< "$(sed -n '/testing-concurrency/p' config/general.json | cut -d '[' -f 2 | cut -d ']' -f 1)"
+    IFS=', ' read -r -a testing_experiment \
+        <<< "$(sed -n '/testing-experiment/p' config/general.json | cut -d '[' -f 2 | cut -d ']' -f 1)"
+    IFS=', ' read -r -a testing_mpl \
+        <<< "$(sed -n '/testing-mpl/p' config/general.json | cut -d '[' -f 2 | cut -d ']' -f 1)"
+
+
+    for concurrency in "${testing_concurrency[@]}"; do
+        concurrency=$(echo ${concurrency%\"})
+        concurrency=$(echo ${concurrency#\"})
+
+        for experiment in "${testing_experiment[@]}"; do
+            experiment=$(echo ${experiment%\"})
+            experiment=$(echo ${experiment#\"})
+
+            for mpl in "${testing_mpl[@]}"; do
                 runner ${experiment} ${concurrency} ${mpl} &
                 observer $!
             done
