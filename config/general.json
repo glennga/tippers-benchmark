@@ -1,5 +1,16 @@
 {
   "observation-db": "results/observation.db",
+  "create-ddl": "resources/schema/create.sql",
+  "drop-ddl": "resources/schema/drop.sql",
+
+  "data-low-concurrency-metadata": "resources/data/low_concurrency/metadata.sql",
+  "data-low-concurrency-observations": "resources/data/low_concurrency/observations.sql",
+  "data-high-concurrency-metadata": "resources/data/high_concurrency/metadata.sql",
+  "data-high-concurrency-observations": "resources/data/high_concurrency/observations.sql",
+
+  "queries-low-concurrency": "resources/queries/low_concurrency/queries.txt",
+  "queries-high-concurrency": "resources/queries/high_concurrency/queries.txt",
+
   "observation-frequency": 0.1,
-  "maximum-mpl": 1000
+  "testing-mpl": [1, 2, 3, 4, 5, 6]
 }

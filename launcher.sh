@@ -1,73 +1,49 @@
 #!/bin/bash
+set -e
 
-initializer() {
-    mkdir -p results # Assuming that we are starting in the repo directory.
-
-    python3 initializer.py \
-        postgres
-
-    python3 initializer.py \
-        mysql
-}
-
-observer() {
-    python3 observer.py \
-        postgres \
-        false
-}
-
-runner() {
-    sleep 0.5 # Wait for analyzer to run first...
-
-    echo "Not implemented."
-}
-
-destructor() {
-    python3 destructor.py \
-        postgres
-
-    python3 destructor.py \
-        mysql
-}
-
-if [[ $# -lt 1 ]]; then
-    echo "Usage: launcher.sh -[i/r/o/d]"
+if [[ $# -ge 2 ]] && [[ $@ == *mysql* ]]; then
+    database_opt="mysql"
+elif [[ $# -ge 2 ]] && [[ $@ == *postgres* ]]; then
+    database_opt="postgres"
+else
+    echo "Usage: launcher.sh [-r/-x] [mysql/postgres]"
     exit 1
 fi
 
-# If given, verify that the user wants to delete all tables in both MySQL and Postgres before proceeding.
-if [[ $@ == *-d* ]]; then
-    echo "You have chosen to delete all experiment tables in MySQL and Postgres."
-    printf "Please enter [y/n] to confirm: "
-    while read options; do
-        case ${options} in
-            y) destructor; break ;;
-            n) exit 1; break;;
-            *) printf "Invalid input. Please enter [y/n] to confirm: ";;
-        esac
-    done
-fi
-
-# Perform the initialization if specified.
-if [[ $@ == *-i* ]]; then
-    initializer
-fi
-
-# Next, start the experiments.
+# Re-setup the experiment if specified.
 if [[ $@ == *-r* ]]; then
-    runner &
-    runner_pid=$!
+    mkdir -p results # Assuming that we are starting in the repo directory.
+    python3 destructor.py ${database_opt}
+    python3 initializer.py ${database_opt} 2>/dev/null
+    exit 0
 fi
 
-# Last, launch the observer. We send our input to a named pipe.
-if [[ $@ == *-o* ]] && [[ $@ == *-r* ]]; then
-    mkfifo /tmp/observer.fifo
-    </tmp/observer.fifo tail -c +1 -f | observer > /dev/null &
-    observer_pid=$!
+# Start the experiments.
+if [[ $@ == *-x* ]]; then
+    observer() {
+        mkfifo /tmp/observer.fifo  # We send our input to a named pipe.
+        </tmp/observer.fifo tail -c +1 -f | python3 observer.py ${database_opt} false > /dev/null &
+        observer_pid=$!
 
-    wait ${runner_pid}
-    echo "\n" > /tmp/observer.fifo
-    echo > /tmp/observer.fifo
-    rm /tmp/observer.fifo
-    wait ${observer_pid}
+        wait $1  # Wait for the runner to stop before stopping the observer.
+        echo "\n" > /tmp/observer.fifo
+        echo > /tmp/observer.fifo
+        rm /tmp/observer.fifo
+        wait ${observer_pid}
+    }
+    runner() {
+        sleep 0.5 # Wait for observer to run first...
+        python3 runner.py ${database_opt} $1 $2
+    }
+
+    for concurrency in low high; do
+        for experiment in t q w; do
+            echo "Running experiment: [${experiment}] on ${concurrency} concurrency."
+            runner ${experiment} ${concurrency} &
+            observer $!
+        done
+    done
+
+    echo "Experiments are finished!"
+    exit 0
 fi
