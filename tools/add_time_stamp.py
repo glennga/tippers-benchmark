@@ -10,10 +10,9 @@ for line in file_r:
     time_stamp = line.split(",")[-2]
     time_stamp = time_stamp.replace("'", "")
     time_stamp = time_stamp[1:]
-    #time_stamp = time_stamp.replace(" ", "")
+    # time_stamp = time_stamp.replace(" ", "")
 
     file_w.write(line + time_stamp + "\n")
 
 file_r.close()
 file_w.close()
-

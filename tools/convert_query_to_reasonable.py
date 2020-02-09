@@ -15,7 +15,7 @@ for line in file_r:
         if quote_ctr % 2 == 0:
             query_list.append((query, timestamp))
             print(query)
-            #print(query, timestamp)
+            # print(query, timestamp)
             quote_ctr = 0
             timestamp = ""
             query = ""
@@ -24,23 +24,14 @@ for line in file_r:
             timestamp = row[0:-2]
             timestamp = timestamp.replace("T", " ")
             timestamp = timestamp.replace("Z", "")
-            #print(timestamp)
+            # print(timestamp)
 
     else:
         query += row + " "
 
-
-
-    
-    #break
-
+    # break
 
 file_r.close()
-
-
-
-
-
 
 file_w = open(file_name_w, "w")
 

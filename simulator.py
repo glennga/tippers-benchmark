@@ -3,27 +3,24 @@ import random
 import threading
 
 
-
-#Thread function given a list of queries
+# Thread function given a list of queries
 def execute_query(hostname, username, password, database, query_list):
-
-
     db = mysql.connector.connect(
-        host = hostname,
-        user = username, 
-        passwd = password,
-        database = database
+        host=hostname,
+        user=username,
+        passwd=password,
+        database=database
 
-        )
+    )
 
     conn = db.cursor()
 
     try:
-        
-        tr_id = random.randint(0,10000000)
+
+        tr_id = random.randint(0, 10000000)
         print("beginning transaction", tr_id)
         db.start_transaction()
-    
+
         for query in query_list:
             conn.execute(query)
 
@@ -38,9 +35,6 @@ def execute_query(hostname, username, password, database, query_list):
         db.close()
         print("Finished", tr_id)
 
-        
-
-
 
 def get_table_name_insert(query):
     query_split_by_into = query.split("INTO")
@@ -48,13 +42,8 @@ def get_table_name_insert(query):
 
     table_name = query_split_by_values[0]
     table_name = table_name.replace(' ', "")
-    
+
     return table_name
-
-
-
-
-
 
 
 def parse_query_list_insert(query_list_i):
@@ -71,9 +60,9 @@ def parse_query_list_insert(query_list_i):
         else:
             table_query_dict[table_name] = [query]
 
-
-    query_list_return = [v for (k,v) in table_query_dict.items()]
+    query_list_return = [v for (k, v) in table_query_dict.items()]
     return query_list_return
+
 
 def parse_query_list_select(query_list_s):
     query_list_return = []
@@ -81,12 +70,7 @@ def parse_query_list_select(query_list_s):
     for query in query_list_s:
         query_list_return.append([query])
 
-
     return query_list_return
-
-
-
-
 
 
 def process_transactions(file_name, hostname, username, password, database):
@@ -103,12 +87,11 @@ def process_transactions(file_name, hostname, username, password, database):
         query = record_vals[0] + ";"
 
         timestamp = record_vals[1]
-        
+
         if ctr == 0:
             cur_timestamp = timestamp
 
         if timestamp != cur_timestamp:
-
 
             query_table_i = parse_query_list_insert(query_list_i)
             query_table_s = parse_query_list_select(query_list_s)
@@ -116,10 +99,9 @@ def process_transactions(file_name, hostname, username, password, database):
             query_table = query_table_i + query_table_s
 
             thread_list = []
-            
-            
+
             for i in query_table:
-                t = threading.Thread(target=execute_query, args = (hostname, username, password, database, i,))
+                t = threading.Thread(target=execute_query, args=(hostname, username, password, database, i,))
                 thread_list.append(t)
 
             for thread in thread_list:
@@ -127,8 +109,6 @@ def process_transactions(file_name, hostname, username, password, database):
 
             for thread in thread_list:
                 thread.join()
-
-
 
             cur_timestamp = timestamp
             query_list_i = []
@@ -149,20 +129,11 @@ def process_transactions(file_name, hostname, username, password, database):
             else:
                 query_list_s.append(query)
 
-
-        ctr += 1 
-
-
-
+        ctr += 1
 
     file_r.close()
 
+# if __name__ == '__main__':
 
 
-#if __name__ == '__main__':
-
-    
-
-    #process_transactions(file_name, hostname, username, password, database)
-    
-    
+# process_transactions(file_name, hostname, username, password, database)
