@@ -80,6 +80,8 @@ def initialize_mysql(config_directory: str) -> None:
             for statement in create_ddl_file.read().split(';'):
                 if not statement.isspace():
                     mysql_cur_2.execute(statement)
+        mysql_cur_2.commit()
+        mysql_cur_2.close()
         mysql_conn_2.close()
 
     except Exception as e:
