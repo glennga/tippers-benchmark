@@ -1,8 +1,7 @@
 """ This file is for post-experiment (teardown) and running the drop DDLs on both PostgreSQL and MySQL. """
+from connect import get_mysql_new_connection, get_postgres_new_connection
 import argparse
 import json
-
-from shared import *
 
 
 def teardown_postgres(config_directory: str) -> None:
@@ -12,7 +11,7 @@ def teardown_postgres(config_directory: str) -> None:
         postgres_json = json.load(postgres_config_file)
 
     try:
-        postgres_conn = get_postgres_connection(
+        postgres_conn = get_postgres_new_connection(
             user=postgres_json['user'],
             password=postgres_json['password'],
             host=postgres_json['host']
@@ -48,7 +47,7 @@ def teardown_mysql(config_directory: str) -> None:
         mysql_json = json.load(mysql_config_file)
 
     try:
-        mysql_conn = get_mysql_connection(
+        mysql_conn = get_mysql_new_connection(
             user=mysql_json['username'],
             password=mysql_json['password'],
             host=mysql_json['host'],

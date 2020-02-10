@@ -1,8 +1,8 @@
 """ This file is for pre-experiment setup and running the DDLs and metadata inserts on both PostgreSQL and MySQL. """
+from connect import get_mysql_new_connection, get_postgres_new_connection
+
 import argparse
 import json
-
-from shared import *
 
 
 def initialize_postgres(config_directory: str) -> None:
@@ -15,7 +15,7 @@ def initialize_postgres(config_directory: str) -> None:
 
     try:
         # Create the database.
-        postgres_conn_1 = get_postgres_connection(
+        postgres_conn_1 = get_postgres_new_connection(
             user=postgres_json['user'],
             password=postgres_json['password'],
             host=postgres_json['host']
@@ -25,10 +25,12 @@ def initialize_postgres(config_directory: str) -> None:
         postgres_conn_1.cursor().execute(f""" ALTER SYSTEM SET track_io_timing = on; """)
         postgres_conn_1.cursor().execute(f""" ALTER SYSTEM SET log_statement_stats = on; """)
         postgres_conn_1.cursor().execute(f""" ALTER SYSTEM SET log_executor_stats = on; """)
+        postgres_conn_1.cursor().execute(f""" ALTER SYSTEM SET max_connections = 1000; """)  # Hard coded!!
+        postgres_conn_1.cursor().execute(f""" ALTER SYSTEM SET max_prepared_transactions = 1000; """)
         postgres_conn_1.close()
 
         # Create the tables.
-        postgres_conn_2 = get_postgres_connection(
+        postgres_conn_2 = get_postgres_new_connection(
             user=postgres_json['user'],
             password=postgres_json['password'],
             host=postgres_json['host'],
@@ -55,17 +57,19 @@ def initialize_mysql(config_directory: str) -> None:
 
     try:
         # Create the database.
-        mysql_conn_1 = get_mysql_connection(
+        mysql_conn_1 = get_mysql_new_connection(
             user=mysql_json['username'],
             password=mysql_json['password'],
             host=mysql_json['host'],
         )
         mysql_conn_1.cursor().execute(f""" CREATE DATABASE {mysql_json['database']};""")
+        mysql_conn_1.cursor().execute(f""" SET PERSIST innodb_thread_concurrency = 1000; """)  # Hard coded!!
+        mysql_conn_1.cursor().execute(f""" SET PERSIST max_connections = 1000; """)
         mysql_conn_1.commit()
         mysql_conn_1.close()
 
         # Create the tables.
-        mysql_conn_2 = get_mysql_connection(
+        mysql_conn_2 = get_mysql_new_connection(
             user=mysql_json['username'],
             password=mysql_json['password'],
             host=mysql_json['host'],
