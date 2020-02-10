@@ -118,11 +118,15 @@ def process_transactions(file_name, hostname, username, password, database, is_m
             cur_timestamp = timestamp
 
         if timestamp != cur_timestamp:
-
             query_table_i = parse_query_list_insert(query_list_i)
             query_table_s = parse_query_list_select(query_list_s)
 
-            query_table = query_table_i + query_table_s
+            if exp_no == 1:
+                query_table = query_list_i
+            elif exp_no == 2:
+                query_table = query_list_s
+            else:
+                query_table = query_table_i + query_table_s
 
             thread_list = []
 
@@ -164,7 +168,6 @@ def process_transactions(file_name, hostname, username, password, database, is_m
 
     file_r.close()
 
-# if __name__ == '__main__':
 
 
 # process_transactions(file_name, hostname, username, password, database)
