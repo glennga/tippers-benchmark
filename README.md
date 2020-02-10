@@ -37,7 +37,7 @@ system.
 
 5. Create a fresh MySQL instance and PostgreSQL instance. Modify the parameters in `config/mysql.json` and `config/postgres.json` to include your credentials. **Ensure that the user you provide in both instances is a super-user.**
 
-6. While your Anaconda environment is activated, run the launcher script with the `-r` option to verify MySQL and Postgres connections. You may have to change permissions on the script (`chmod +x launcher.sh`) before running it:
+6. While your Anaconda environment is activated, run the launcher script with the `-n` option to verify MySQL and Postgres connections. You may have to change permissions on the script (`chmod +x launcher.sh`) before running it:
 
     ```bash
     > cd tippers-benchmark

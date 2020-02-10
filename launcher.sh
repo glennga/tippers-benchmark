@@ -6,13 +6,19 @@ if [[ $# -ge 2 ]] && [[ $@ == *mysql* ]]; then
 elif [[ $# -ge 2 ]] && [[ $@ == *postgres* ]]; then
     database_opt="postgres"
 else
-    echo "Usage: launcher.sh [-r/-x] [mysql/postgres]"
+    echo "Usage: launcher.sh [-r/-x/-n] [mysql/postgres]"
     exit 1
+fi
+
+# Initialize the databases.
+if [[ $@ == *-n* ]]; then
+    mkdir -p results # Assuming that we are starting in the repo directory.
+    python3 initializer.py ${database_opt} 2>/dev/null
+    exit 0
 fi
 
 # Re-setup the experiment if specified.
 if [[ $@ == *-r* ]]; then
-    mkdir -p results # Assuming that we are starting in the repo directory.
     python3 destructor.py ${database_opt}
     python3 initializer.py ${database_opt} 2>/dev/null
     exit 0
