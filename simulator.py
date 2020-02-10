@@ -12,8 +12,7 @@ import abc
 
 
 # Queue of query sets. Submitted by the workload consumers.
-_QUEUE_MAXIMUM_SIZE = 1000  # Hard-coded max right now...
-_query_set_queue = queue.Queue(_QUEUE_MAXIMUM_SIZE)
+_query_set_queue = None
 
 
 class _MySQLConsumerThread(threading.Thread):
@@ -174,6 +173,10 @@ class _CompleteWorkloadProducer(_AbstractWorkloadProducer):
 
 
 def insert_only_workload(**kwargs):
+    # Create our shared queue.
+    global _query_set_queue
+    _query_set_queue = queue.Queue(kwargs['multiprogramming'] + 1)
+
     # Spawn our consumer threads. Wait for them to start.
     for _ in range(kwargs['multiprogramming']):
         _MySQLConsumerThread(**kwargs).start() if kwargs['is_mysql'] else _PostgresConsumerThread().start()
@@ -184,6 +187,10 @@ def insert_only_workload(**kwargs):
 
 
 def query_only_workload(**kwargs):
+    # Create our shared queue.
+    global _query_set_queue
+    _query_set_queue = queue.Queue(kwargs['multiprogramming'] + 1)
+
     # Spawn our consumer threads. Wait for them to start.
     for _ in range(kwargs['multiprogramming']):
         _MySQLConsumerThread(**kwargs).start() if kwargs['is_mysql'] else _PostgresConsumerThread().start()
@@ -194,6 +201,10 @@ def query_only_workload(**kwargs):
 
 
 def complete_workload(**kwargs):
+    # Create our shared queue.
+    global _query_set_queue
+    _query_set_queue = queue.Queue(kwargs['multiprogramming'] + 1)
+
     # Spawn our consumer threads. Wait for them to start.
     for _ in range(kwargs['multiprogramming']):
         _MySQLConsumerThread(**kwargs).start() if kwargs['is_mysql'] else _PostgresConsumerThread().start()
