@@ -1,15 +1,19 @@
 {
   "observation-db": "results/observation.db",
+  "timing-db": "results/timing.db",
+
   "create-ddl": "resources/schema/create.sql",
   "drop-ddl": "resources/schema/drop.sql",
 
   "data-low-concurrency-metadata": "resources/data/low_concurrency/metadata.sql",
-  "data-low-concurrency-observations": "resources/data/low_concurrency/observations.txt",
+  "data-low-concurrency-workload": "resources/data/low_concurrency/workload.txt",
   "data-high-concurrency-metadata": "resources/data/high_concurrency/metadata.sql",
-  "data-high-concurrency-observations": "resources/data/high_concurrency/observations.txt",
+  "data-high-concurrency-workload": "resources/data/high_concurrency/workload.txt",
 
   "observation-frequency": 0.1,
-  "testing-mpl": [1, 2, 3, 4, 5, 6],
+  "max-retries": 2,
+
+  "testing-mpl": [1, 10, 100, 250, 500],
   "testing-concurrency": ["low", "high"],
-  "testing-experiment": ["t", "q", "w"]
+  "testing-workload": ["i", "q", "c"]
 }

@@ -1,12 +1,12 @@
 """ This file holds the task to observe and monitor MySQL and Postgres performance. """
+from connect import get_mysql_new_connection, get_postgres_new_connection, get_results_connection
+
 import argparse
 import abc
 import json
 import datetime
 import threading
 import time
-
-from shared import *
 
 # Global variable to be shared between the main thread and logging thread.
 _is_logging_active = False
@@ -80,7 +80,7 @@ class _PostgresObserver(_Observer):
         :param database: PostgreSQL database to use upon connecting.
         """
         # Establish our Postgres connection. Pass any errors up to the factory method.
-        self.postgres_conn = get_postgres_connection(user, password, host, database)
+        self.postgres_conn = get_postgres_new_connection(user, password, host, database)
         self.postgres_conn.autocommit = True
         self.postgres_cur = self.postgres_conn.cursor()
         self.working_database = database
@@ -201,7 +201,7 @@ class _MySQLObserver(_Observer):
         :param host: Host URI associated with connection.
         """
         # Establish our MySQL connection. Pass any errors up to the factory method.
-        self.mysql_conn = get_mysql_connection(user, password, host, 'sys')
+        self.mysql_conn = get_mysql_new_connection(user, password, host, 'sys')
         self.mysql_cur = self.mysql_conn.cursor()
         self.working_host = host
         self.working_schema = schema
@@ -363,14 +363,50 @@ class _MySQLObserver(_Observer):
         self.mysql_conn.close()
 
 
-def _observer_factory(config_directory: str, database_option: str, results_file: str) -> _Observer:
+class _TimingObserver(_Observer):
+    def __init__(self, results_file: str) -> None:
+        # Establish our results file connection.
+        self.results_conn = get_results_connection(results_file=results_file)
+        self.results_conn.isolation_level = None
+        self.results_cur = self.results_conn.cursor()
+        self.results_cur.execute("begin")
+
+        # Create our table.
+        self.results_cur.execute("""
+            CREATE TABLE IF NOT EXISTS TimingStatistics (
+                start_of_transaction DATETIME NOT NULL,
+                end_of_transaction DATETIME NOT NULL
+            );
+        """)
+
+        # Create a lock for logging (ugh).
+        self.log_lock = threading.Lock()
+
+    def log_action(self) -> None:  # Ignoring...
+        pass
+
+    def record_observation(self, start_of_transaction: str, end_of_transaction: str) -> None:
+        self.log_lock.acquire()
+        self.results_cur.execute(f"""
+            INSERT INTO TimingStatistics
+            VALUES ("{start_of_transaction}", "{end_of_transaction}");
+        """)
+        self.log_lock.release()
+
+    def end_logging(self) -> None:
+        self.results_cur.execute('commit')
+        self.results_conn.commit()
+        self.results_conn.close()
+
+
+def observer_factory(config_directory: str, observer_option: str, results_file: str) -> _Observer:
     """
     :param config_directory: Location of the 'general.json', 'postgres.json', and 'mysql.json' config files.
-    :param database_option: Type of observer to producer.
+    :param observer_option: Type of observer to producer.
     :param results_file: Location of the results database to log to.
     :return: A _Database instance, dependent on the database_option.
     """
-    if database_option == 'postgres':
+    if observer_option == 'postgres':
         with open(config_directory + '/postgres.json', 'r') as postgres_config_file:
             postgres_json = json.load(postgres_config_file)
 
@@ -386,7 +422,7 @@ def _observer_factory(config_directory: str, database_option: str, results_file:
             print('Error in creating a PostgreSQL observer: ' + str(e))
             exit(1)
 
-    else:
+    elif observer_option == 'mysql':
         with open(config_directory + '/mysql.json', 'r') as mysql_config_file:
             mysql_json = json.load(mysql_config_file)
 
@@ -401,6 +437,9 @@ def _observer_factory(config_directory: str, database_option: str, results_file:
         except Exception as e:
             print('Error in creating a MySQL observer: ' + str(e))
             exit(1)
+
+    else:
+        return _TimingObserver(results_file=results_file)
 
 
 if __name__ == '__main__':
@@ -418,6 +457,6 @@ if __name__ == '__main__':
 
     with open(args.config_path + '/general.json', 'r') as general_config_file:
         general_json = json.load(general_config_file)
-    observer = _observer_factory(args.config_path, args.database, general_json['observation-db'])
+    observer = observer_factory(args.config_path, args.database, general_json['observation-db'])
     observer.begin_logging(args.oneshot, general_json['observation-frequency'])
     observer.end_logging()

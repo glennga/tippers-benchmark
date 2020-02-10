@@ -1,71 +1,62 @@
 """ This file is the Python entry point to launch an experiment and observer. """
-import argparse
-import functools
-import json
-import abc
-from typing import Callable, Dict
-
+from simulator import insert_only_workload, query_only_workload, complete_workload
+from connect import get_postgres_new_connection, get_mysql_new_connection
 from initializer import initialize_mysql, initialize_postgres
 from destructor import teardown_mysql, teardown_postgres
-from simulator import process_transactions
-from shared import *
+from observer import observer_factory
+
+from typing import Callable, Dict
+import argparse
+import json
+import abc
 
 
-class _GenericExperimentFactory(abc.ABC):
+class _GenericWorkloadFactory(abc.ABC):
     @abc.abstractmethod
-    def _mpl_decorator(self, func, working_mpl: int):
+    def _insert_only_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path: str):
         pass
 
     @abc.abstractmethod
-    def _experiment_t(self, isolation: str, file_locations: Dict[str, str], config_path: str):
+    def _query_only_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path: str):
         pass
 
     @abc.abstractmethod
-    def _experiment_q(self, isolation: str, file_locations: Dict[str, str], config_path: str):
+    def _complete_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path: str):
         pass
 
-    @abc.abstractmethod
-    def _experiment_w(self, isolation: str, file_locations: Dict[str, str], config_path: str):
-        pass
-
-    def __call__(self, experiment: str) -> Callable:
-        if experiment == 't':
-            return lambda c, f, m, i: self._mpl_decorator(self._experiment_t, m)(i, f, c)
-        elif experiment == 'q':
-            return lambda c, f, m, i: self._mpl_decorator(self._experiment_q, m)(i, f, c)
+    def __call__(self, workload: str) -> Callable:
+        if workload == 'i':
+            return self._insert_only_workload
+        elif workload == 'q':
+            return self._query_only_workload
         else:
-            return lambda c, f, m, i: self._mpl_decorator(self._experiment_w, m)(i, f, c)
+            return self._complete_workload
 
 
-class _PostgresExperimentFactory(_GenericExperimentFactory):
+class _PostgresWorkloadFactory(_GenericWorkloadFactory):
     def __init__(self, postgres_json, concurrency: str):
         self.postgres_json = postgres_json
         self.concurrency = concurrency
 
-    def _mpl_decorator(self, func, working_mpl: int):
-        @functools.wraps(func)
-        def _mpl_wrapper(*args, **kwargs):
-            conn = get_postgres_connection(
-                user=self.postgres_json['user'],
-                password=self.postgres_json['password'],
-                host=self.postgres_json['host'],
-                database=self.postgres_json['database']
-            )
-            conn.autocommit = True
-            cur = conn.cursor()
-            cur.execute(f""" ALTER SYSTEM SET max_connections = {working_mpl}; """)
-            cur.execute(f""" ALTER SYSTEM SET max_prepared_transactions = {working_mpl}; """)
-            conn.close()
+    def _generate_workload_arguments(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path: str):
+        return {
+            'filename': _general_json[f'data-{self.concurrency}-concurrency-workload'],
+            'hostname': self.postgres_json['host'],
+            'username': self.postgres_json['user'],
+            'password': self.postgres_json['password'],
+            'database': self.postgres_json['database'],
+            'isolation': {'ru': 0, 'rc': 1, 'rr': 2, 's': 3}[isolation],
+            'multiprogramming': mpl,
+            'max_retries': int(_general_json['max-retries']),
+            'observer': observer_factory(config_path, 'timing', _general_json['timing-db']),
+            'is_mysql': False,
+        }
 
-            func(*args, **kwargs)
-
-        return _mpl_wrapper
-
-    def _experiment_tw(self, isolation: str, file_locations: Dict[str, str], config_path: str, exp_no: int):
+    def _insert_metadata(self, _general_json: Dict[str, str], config_path: str):
         teardown_postgres(config_path)  # Each experiment is contained. We must teardown then initialize again.
         initialize_postgres(config_path)
 
-        conn = get_postgres_connection(
+        conn = get_postgres_new_connection(
             user=self.postgres_json['user'],
             password=self.postgres_json['password'],
             host=self.postgres_json['host'],
@@ -74,7 +65,7 @@ class _PostgresExperimentFactory(_GenericExperimentFactory):
         cur = conn.cursor()
 
         # Insert metadata.
-        with open(general_json[f'data-{self.concurrency}-concurrency-metadata']) as insert_metadata_file:
+        with open(_general_json[f'data-{self.concurrency}-concurrency-metadata']) as insert_metadata_file:
             statement = insert_metadata_file.readline()
             while statement:
                 cur.execute(statement)
@@ -83,83 +74,47 @@ class _PostgresExperimentFactory(_GenericExperimentFactory):
         conn.commit()
         conn.close()
 
-        # Determine the isolation level.
-        if isolation == 'ru':
-            postgres_isolation = 0
-        elif isolation == 'rc':
-            postgres_isolation = 1
-        elif isolation == 'rr':
-            postgres_isolation = 2
-        else:
-            postgres_isolation = 3
+    def _insert_only_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path: str):
+        self._insert_metadata(_general_json, config_path)
+        insert_only_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
 
-        process_transactions(
-            file_name=file_locations[f'data-{self.concurrency}-concurrency-observations'],
-            hostname=self.postgres_json['host'],
-            username=self.postgres_json['user'],
-            password=self.postgres_json['password'],
-            database=self.postgres_json['database'],
-            is_mysql=False,
-            iso_level=postgres_isolation,
-            exp_no=exp_no
-        )
+    def _query_only_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path: str):
+        query_only_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
 
-    def _experiment_t(self, isolation: str, file_locations: Dict[str, str], config_path: str):
-        return self._experiment_tw(isolation, file_locations, config_path, 1)
-
-    def _experiment_q(self, isolation: str, file_locations: Dict[str, str], config_path: str):
-        if isolation == 'ru':
-            postgres_isolation = 0
-        elif isolation == 'rc':
-            postgres_isolation = 1
-        elif isolation == 'rr':
-            postgres_isolation = 2
-        else:
-            postgres_isolation = 3
-
-        process_transactions(
-            file_name=file_locations[f'data-{self.concurrency}-concurrency-observations'],
-            hostname=self.postgres_json['host'],
-            username=self.postgres_json['user'],
-            password=self.postgres_json['password'],
-            database=self.postgres_json['database'],
-            is_mysql=False,
-            iso_level=postgres_isolation,
-            exp_no=2
-        )
-
-    def _experiment_w(self, isolation: str, file_locations: Dict[str, str], config_path: str):
-        return self._experiment_tw(isolation, file_locations, config_path, 3)
+    def _complete_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path: str):
+        self._insert_metadata(_general_json, config_path)
+        complete_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
 
 
-class _MySQLExperimentFactory(_GenericExperimentFactory):
+class _MySQLWorkloadFactory(_GenericWorkloadFactory):
     def __init__(self, mysql_json, concurrency: str):
         self.mysql_json = mysql_json
         self.concurrency = concurrency
 
-    def _mpl_decorator(self, func, working_mpl: int):
-        @functools.wraps(func)
-        def _mpl_wrapper(*args, **kwargs):
-            conn = get_mysql_connection(
-                user=self.mysql_json['username'],
-                password=self.mysql_json['password'],
-                host=self.mysql_json['host'],
-                database=self.mysql_json['database']
-            )
-            cur = conn.cursor()
-            cur.execute(f""" SET PERSIST innodb_thread_concurrency = {working_mpl}; """)
-            conn.commit()
-            conn.close()
+    def _generate_workload_arguments(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path: str):
+        return {
+            'filename': _general_json[f'data-{self.concurrency}-concurrency-workload'],
+            'hostname': self.mysql_json['host'],
+            'username': self.mysql_json['username'],
+            'password': self.mysql_json['password'],
+            'database': self.mysql_json['database'],
+            'isolation': {
+                'ru': 'READ UNCOMMITTED',
+                'rc': 'READ COMMITTED',
+                'rr': 'REPEATABLE READ',
+                's': 'SERIALIZABLE'
+            }[isolation],
+            'multiprogramming': mpl,
+            'max_retries': int(_general_json['max-retries']),
+            'observer': observer_factory(config_path, 'timing', _general_json['timing-db']),
+            'is_mysql': True,
+        }
 
-            func(*args, **kwargs)
-
-        return _mpl_wrapper
-
-    def _experiment_tw(self, isolation: str, file_locations: Dict[str, str], config_path, exp_no: int):
+    def _insert_metadata(self, _general_json: Dict[str, str], config_path,):
         teardown_mysql(config_path)  # Each experiment is contained. We must teardown then initialize again.
         initialize_mysql(config_path)
 
-        conn = get_mysql_connection(
+        conn = get_mysql_new_connection(
             user=self.mysql_json['username'],
             password=self.mysql_json['password'],
             host=self.mysql_json['host'],
@@ -169,7 +124,7 @@ class _MySQLExperimentFactory(_GenericExperimentFactory):
         cur = conn.cursor()
 
         # Insert metadata.
-        with open(general_json[f'data-{self.concurrency}-concurrency-metadata']) as insert_metadata_file:
+        with open(_general_json[f'data-{self.concurrency}-concurrency-metadata']) as insert_metadata_file:
             statement = insert_metadata_file.readline()
             while statement:
                 cur.execute(statement)
@@ -177,53 +132,16 @@ class _MySQLExperimentFactory(_GenericExperimentFactory):
 
         conn.close()
 
-        # Determine the isolation level.
-        if isolation == 'ru':
-            mysql_isolation = 'READ UNCOMMITTED'
-        elif isolation == 'rc':
-            mysql_isolation = 'READ COMMITTED'
-        elif isolation == 'rr':
-            mysql_isolation = 'REPEATABLE READ'
-        else:
-            mysql_isolation = 'SERIALIZABLE'
+    def _insert_only_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path):
+        self._insert_metadata(_general_json, config_path)
+        insert_only_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
 
-        process_transactions(
-            file_name=file_locations[f'data-{self.concurrency}-concurrency-observations'],
-            hostname=self.mysql_json['host'],
-            username=self.mysql_json['username'],
-            password=self.mysql_json['password'],
-            database=self.mysql_json['database'],
-            is_mysql=True,
-            iso_level=mysql_isolation,
-            exp_no=exp_no
-        )
+    def _query_only_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path):
+        query_only_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
 
-    def _experiment_t(self, isolation: str, file_locations: Dict[str, str], config_path):
-        return self._experiment_tw(isolation, file_locations, config_path, 1)
-
-    def _experiment_q(self, isolation: str, file_locations: Dict[str, str], config_path):
-        if isolation == 'ru':
-            mysql_isolation = 'READ UNCOMMITTED'
-        elif isolation == 'rc':
-            mysql_isolation = 'READ COMMITTED'
-        elif isolation == 'rr':
-            mysql_isolation = 'REPEATABLE READ'
-        else:
-            mysql_isolation = 'SERIALIZABLE'
-
-        process_transactions(
-            file_name=file_locations[f'data-{self.concurrency}-concurrency-observations'],
-            hostname=self.mysql_json['host'],
-            username=self.mysql_json['username'],
-            password=self.mysql_json['password'],
-            database=self.mysql_json['database'],
-            is_mysql=True,
-            iso_level=mysql_isolation,
-            exp_no=2
-        )
-
-    def _experiment_w(self, isolation: str, file_locations: Dict[str, str], config_path):
-        return self._experiment_tw(isolation, file_locations, config_path, 3)
+    def _complete_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path):
+        self._insert_metadata(_general_json, config_path)
+        complete_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
 
 
 if __name__ == '__main__':
@@ -231,40 +149,40 @@ if __name__ == '__main__':
 
     help_strings = {
         "database": 'Which database to run experiments on.',
-        "experiment": "Which experiment to run. t=throughput, q=query, w=workload.",
+        "workload": "Which workload to run. i=insert-only, q=query-only, c=complete.",
         "concurrency": 'Type of concurrency experiment to run.',
-        "mpl": 'Multiprogramming level to run.',
         "isolation": "Isolation level to run.",
+        "multiprogramming": 'Multiprogramming level to run.',
         "config_path": 'Location of configuration files.'
     }
     parser.add_argument('database', type=str, choices=['postgres', 'mysql'], help=help_strings['database'])
-    parser.add_argument('experiment', type=str, choices=['t', 'q', 'w'], help=help_strings['experiment'])
+    parser.add_argument('workload', type=str, choices=['i', 'q', 'c'], help=help_strings['workload'])
     parser.add_argument('concurrency', type=str, choices=['high', 'low'], help=help_strings['concurrency'])
     parser.add_argument('isolation', type=str, choices=['ru', 'rc', 'rr', 's'], help=help_strings['isolation'])
-    parser.add_argument('mpl', type=int, help=help_strings['mpl'])
+    parser.add_argument('multiprogramming', type=int, help=help_strings['multiprogramming'])
     parser.add_argument('--config_path', type=str, default='config', help=help_strings['config_path'])
     c_args = parser.parse_args()
 
     # Create an experiment instance.
     if c_args.database == 'postgres':
         with open(c_args.config_path + '/postgres.json', 'r') as postgres_config_file:
-            runner = _PostgresExperimentFactory(
+            runner = _PostgresWorkloadFactory(
                 json.load(postgres_config_file),
                 c_args.concurrency
-            )(c_args.experiment)
+            )(c_args.workload)
 
     else:
         with open(c_args.config_path + '/mysql.json', 'r') as mysql_config_file:
-            runner = _MySQLExperimentFactory(
+            runner = _MySQLWorkloadFactory(
                 json.load(mysql_config_file),
                 c_args.concurrency
-            )(c_args.experiment)
+            )(c_args.workload)
 
-    # Run our experiments. Each experiment is a function of MPL.
+    # Run our workload. Each experiment is a function of MPL.
     with open(c_args.config_path + '/general.json', 'r') as general_config_file:
         general_json = json.load(general_config_file)
-    print(f"Running: experiment [{c_args.experiment}], "
-          f"{c_args.concurrency} concurrency, "
-          f"MPL {c_args.mpl}, "
+    print(f"Running: Workload [{c_args.workload}], "
+          f"{c_args.concurrency} Concurrency, "
+          f"MPL {c_args.multiprogramming}, "
           f"Isolation {c_args.isolation}")
-    runner(c_args.config_path, general_json, c_args.mpl, c_args.isolation)
+    runner(c_args.isolation, c_args.multiprogramming, general_json, c_args.config_path)
