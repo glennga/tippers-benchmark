@@ -1,28 +1,26 @@
-import mysql.connector
 import random
 import threading
+from shared import *
 
 
 # Thread function given a list of queries
-def execute_query(hostname, username, password, database, query_list):
-    db = mysql.connector.connect(
-        host=hostname,
+def execute_mysql(iso_level, hostname, username, password, database, query_list):
+    db = get_mysql_connection(
         user=username,
-        passwd=password,
+        password=password,
+        host=hostname,
         database=database
-
     )
-
-    conn = db.cursor()
+    cur = db.cursor()
 
     try:
 
         tr_id = random.randint(0, 10000000)
         print("beginning transaction", tr_id)
-        db.start_transaction()
+        db.start_transaction(isolation_level=iso_level)
 
         for query in query_list:
-            conn.execute(query)
+            cur.execute(query)
 
         db.commit()
         print("Transaction commited", tr_id)
@@ -31,7 +29,37 @@ def execute_query(hostname, username, password, database, query_list):
         print(e)
 
     finally:
-        conn.close()
+        cur.close()
+        db.close()
+        print("Finished", tr_id)
+
+
+def execute_postgres(iso_level, hostname, username, password, database, query_list):
+    db = get_postgres_connection(
+        user=username,
+        password=password,
+        host=hostname,
+        database=database
+    )
+    db.autocommit = False
+    db.isolation_level = iso_level
+    cur = db.cursor()
+
+    try:
+        tr_id = random.randint(0, 10000000)
+        print("beginning transaction", tr_id)
+
+        for query in query_list:
+            cur.execute(query)
+
+        cur.commit()
+        print("Transaction commited", tr_id)
+
+    except Exception as e:
+        print(e)
+
+    finally:
+        cur.close()
         db.close()
         print("Finished", tr_id)
 
@@ -47,8 +75,6 @@ def get_table_name_insert(query):
 
 
 def parse_query_list_insert(query_list_i):
-    query_list_return = []
-
     table_query_dict = {}
 
     for query in query_list_i:
@@ -73,7 +99,7 @@ def parse_query_list_select(query_list_s):
     return query_list_return
 
 
-def process_transactions(file_name, hostname, username, password, database):
+def process_transactions(file_name, hostname, username, password, database, is_mysql, iso_level, exp_no):
     file_r = open(file_name, "r")
 
     query_list_i = []
@@ -101,7 +127,14 @@ def process_transactions(file_name, hostname, username, password, database):
             thread_list = []
 
             for i in query_table:
-                t = threading.Thread(target=execute_query, args=(hostname, username, password, database, i,))
+                if is_mysql:
+                    t = threading.Thread(target=execute_mysql,
+                                         args=(iso_level, hostname, username, password, database, i,)
+                                         )
+                else:
+                    t = threading.Thread(target=execute_postgres,
+                                         args=(iso_level, hostname, username, password, database, i,)
+                                         )
                 thread_list.append(t)
 
             for thread in thread_list:
@@ -114,19 +147,17 @@ def process_transactions(file_name, hostname, username, password, database):
             query_list_i = []
             query_list_s = []
 
-            if "INSERT" in query:
+            if "INSERT" in query and exp_no == 1 or exp_no == 3:
                 query_list_i.append(query)
 
-            else:
+            elif "INSERT" not in query and exp_no == 2 or exp_no == 3:
                 query_list_s.append(query)
 
-
-
         else:
-            if "INSERT" in query:
+            if "INSERT" in query and exp_no == 1 or exp_no == 3:
                 query_list_i.append(query)
 
-            else:
+            elif "INSERT" not in query and exp_no == 2 or exp_no == 3:
                 query_list_s.append(query)
 
         ctr += 1

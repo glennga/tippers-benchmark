@@ -71,17 +71,16 @@ class _Observer(abc.ABC):
 class _PostgresObserver(_Observer):
     """ https://www.datadoghq.com/blog/postgresql-monitoring/ """
 
-    def __init__(self, results_file: str, user: str, password: str, host: str, port: int, database: str) -> None:
+    def __init__(self, results_file: str, user: str, password: str, host: str, database: str) -> None:
         """
         :param results_file: File to log result tuples to (SQLite).
         :param user: Username to use for PostgreSQL connection.
         :param password: Password to use for PostgreSQL connection.
         :param host: Host URI associated with PostgreSQL connection.
-        :param port: Port associated with PostgreSQL connection.
         :param database: PostgreSQL database to use upon connecting.
         """
         # Establish our Postgres connection. Pass any errors up to the factory method.
-        self.postgres_conn = get_postgres_connection(user, password, host, port, database)
+        self.postgres_conn = get_postgres_connection(user, password, host, database)
         self.postgres_conn.autocommit = True
         self.postgres_cur = self.postgres_conn.cursor()
         self.working_database = database
@@ -381,7 +380,6 @@ def _observer_factory(config_directory: str, database_option: str, results_file:
                 user=postgres_json['user'],
                 password=postgres_json['password'],
                 host=postgres_json['host'],
-                port=int(postgres_json['port']),
                 database=postgres_json['database']
             )
         except Exception as e:

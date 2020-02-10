@@ -7,12 +7,8 @@ from typing import Callable, Dict
 
 from initializer import initialize_mysql, initialize_postgres
 from destructor import teardown_mysql, teardown_postgres
+from simulator import process_transactions
 from shared import *
-
-
-# TODO: This tags where we insert all of Karthik's work.
-def _dummy_function(*args, **kwargs):
-    print("Not implemented.")
 
 
 class _GenericExperimentFactory(abc.ABC):
@@ -21,24 +17,24 @@ class _GenericExperimentFactory(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def _experiment_t(self, file_locations: Dict[str, str], config_path: str):
+    def _experiment_t(self, isolation: str, file_locations: Dict[str, str], config_path: str):
         pass
 
     @abc.abstractmethod
-    def _experiment_q(self, file_locations: Dict[str, str]):
+    def _experiment_q(self, isolation: str, file_locations: Dict[str, str], config_path: str):
         pass
 
-    def _experiment_w(self, file_locations: Dict[str, str], config_path: str):
-        self._experiment_t(file_locations, config_path)
-        self._experiment_q(file_locations)
+    @abc.abstractmethod
+    def _experiment_w(self, isolation: str, file_locations: Dict[str, str], config_path: str):
+        pass
 
     def __call__(self, experiment: str) -> Callable:
         if experiment == 't':
-            return lambda c, f, m: self._mpl_decorator(self._experiment_t, m)(f, c)
+            return lambda c, f, m, i: self._mpl_decorator(self._experiment_t, m)(i, f, c)
         elif experiment == 'q':
-            return lambda c, f, m: self._mpl_decorator(self._experiment_q, m)(f)
+            return lambda c, f, m, i: self._mpl_decorator(self._experiment_q, m)(i, f, c)
         else:
-            return lambda c, f, m: self._mpl_decorator(self._experiment_w, m)(f, c)
+            return lambda c, f, m, i: self._mpl_decorator(self._experiment_w, m)(i, f, c)
 
 
 class _PostgresExperimentFactory(_GenericExperimentFactory):
@@ -53,7 +49,6 @@ class _PostgresExperimentFactory(_GenericExperimentFactory):
                 user=self.postgres_json['user'],
                 password=self.postgres_json['password'],
                 host=self.postgres_json['host'],
-                port=int(self.postgres_json['port']),
                 database=self.postgres_json['database']
             )
             conn.autocommit = True
@@ -66,7 +61,7 @@ class _PostgresExperimentFactory(_GenericExperimentFactory):
 
         return _mpl_wrapper
 
-    def _experiment_t(self, file_locations: Dict[str, str], config_path: str):
+    def _experiment_tw(self, isolation: str, file_locations: Dict[str, str], config_path: str, exp_no: int):
         teardown_postgres(config_path)  # Each experiment is contained. We must teardown then initialize again.
         initialize_postgres(config_path)
 
@@ -74,7 +69,6 @@ class _PostgresExperimentFactory(_GenericExperimentFactory):
             user=self.postgres_json['user'],
             password=self.postgres_json['password'],
             host=self.postgres_json['host'],
-            port=int(self.postgres_json['port']),
             database=self.postgres_json['database']
         )
         cur = conn.cursor()
@@ -89,23 +83,53 @@ class _PostgresExperimentFactory(_GenericExperimentFactory):
         conn.commit()
         conn.close()
 
-        # Perform observation inserts.
-        _dummy_function(
-            file_locations[f'data-{self.concurrency}-concurrency-observations'],
-            self.postgres_json['database'],
-            self.postgres_json['host'],
-            self.postgres_json['user'],
-            self.postgres_json['password']
+        # Determine the isolation level.
+        if isolation == 'ru':
+            postgres_isolation = 0
+        elif isolation == 'rc':
+            postgres_isolation = 1
+        elif isolation == 'rr':
+            postgres_isolation = 2
+        else:
+            postgres_isolation = 3
+
+        process_transactions(
+            file_name=file_locations[f'data-{self.concurrency}-concurrency-observations'],
+            hostname=self.postgres_json['host'],
+            username=self.postgres_json['user'],
+            password=self.postgres_json['password'],
+            database=self.postgres_json['database'],
+            is_mysql=False,
+            iso_level=postgres_isolation,
+            exp_no=exp_no
         )
 
-    def _experiment_q(self, file_locations: Dict[str, str]):
-        _dummy_function(
-            file_locations[f'queries-{self.concurrency}-concurrency'],
-            self.postgres_json['database'],
-            self.postgres_json['host'],
-            self.postgres_json['user'],
-            self.postgres_json['password']
+    def _experiment_t(self, isolation: str, file_locations: Dict[str, str], config_path: str):
+        return self._experiment_tw(isolation, file_locations, config_path, 1)
+
+    def _experiment_q(self, isolation: str, file_locations: Dict[str, str], config_path: str):
+        if isolation == 'ru':
+            postgres_isolation = 0
+        elif isolation == 'rc':
+            postgres_isolation = 1
+        elif isolation == 'rr':
+            postgres_isolation = 2
+        else:
+            postgres_isolation = 3
+
+        process_transactions(
+            file_name=file_locations[f'data-{self.concurrency}-concurrency-observations'],
+            hostname=self.postgres_json['host'],
+            username=self.postgres_json['user'],
+            password=self.postgres_json['password'],
+            database=self.postgres_json['database'],
+            is_mysql=False,
+            iso_level=postgres_isolation,
+            exp_no=2
         )
+
+    def _experiment_w(self, isolation: str, file_locations: Dict[str, str], config_path: str):
+        return self._experiment_tw(isolation, file_locations, config_path, 3)
 
 
 class _MySQLExperimentFactory(_GenericExperimentFactory):
@@ -131,7 +155,7 @@ class _MySQLExperimentFactory(_GenericExperimentFactory):
 
         return _mpl_wrapper
 
-    def _experiment_t(self, file_locations: Dict[str, str], config_path):
+    def _experiment_tw(self, isolation: str, file_locations: Dict[str, str], config_path, exp_no: int):
         teardown_mysql(config_path)  # Each experiment is contained. We must teardown then initialize again.
         initialize_mysql(config_path)
 
@@ -153,23 +177,53 @@ class _MySQLExperimentFactory(_GenericExperimentFactory):
 
         conn.close()
 
-        # Perform observation inserts.
-        _dummy_function(
-            file_locations[f'data-{self.concurrency}-concurrency-observations'],
-            self.mysql_json['database'],
-            self.mysql_json['host'],
-            self.mysql_json['username'],
-            self.mysql_json['password']
+        # Determine the isolation level.
+        if isolation == 'ru':
+            mysql_isolation = 'READ UNCOMMITTED'
+        elif isolation == 'rc':
+            mysql_isolation = 'READ COMMITTED'
+        elif isolation == 'rr':
+            mysql_isolation = 'REPEATABLE READ'
+        else:
+            mysql_isolation = 'SERIALIZABLE'
+
+        process_transactions(
+            file_name=file_locations[f'data-{self.concurrency}-concurrency-observations'],
+            hostname=self.mysql_json['host'],
+            username=self.mysql_json['username'],
+            password=self.mysql_json['password'],
+            database=self.mysql_json['database'],
+            is_mysql=True,
+            iso_level=mysql_isolation,
+            exp_no=exp_no
         )
 
-    def _experiment_q(self, file_locations: Dict[str, str]):
-        _dummy_function(
-            file_locations[f'queries-{self.concurrency}-concurrency'],
-            self.mysql_json['database'],
-            self.mysql_json['host'],
-            self.mysql_json['username'],
-            self.mysql_json['password']
+    def _experiment_t(self, isolation: str, file_locations: Dict[str, str], config_path):
+        return self._experiment_tw(isolation, file_locations, config_path, 1)
+
+    def _experiment_q(self, isolation: str, file_locations: Dict[str, str], config_path):
+        if isolation == 'ru':
+            mysql_isolation = 'READ UNCOMMITTED'
+        elif isolation == 'rc':
+            mysql_isolation = 'READ COMMITTED'
+        elif isolation == 'rr':
+            mysql_isolation = 'REPEATABLE READ'
+        else:
+            mysql_isolation = 'SERIALIZABLE'
+
+        process_transactions(
+            file_name=file_locations[f'data-{self.concurrency}-concurrency-observations'],
+            hostname=self.mysql_json['host'],
+            username=self.mysql_json['username'],
+            password=self.mysql_json['password'],
+            database=self.mysql_json['database'],
+            is_mysql=True,
+            iso_level=mysql_isolation,
+            exp_no=2
         )
+
+    def _experiment_w(self, isolation: str, file_locations: Dict[str, str], config_path):
+        return self._experiment_tw(isolation, file_locations, config_path, 3)
 
 
 if __name__ == '__main__':
@@ -180,11 +234,13 @@ if __name__ == '__main__':
         "experiment": "Which experiment to run. t=throughput, q=query, w=workload.",
         "concurrency": 'Type of concurrency experiment to run.',
         "mpl": 'Multiprogramming level to run.',
+        "isolation": "Isolation level to run.",
         "config_path": 'Location of configuration files.'
     }
     parser.add_argument('database', type=str, choices=['postgres', 'mysql'], help=help_strings['database'])
     parser.add_argument('experiment', type=str, choices=['t', 'q', 'w'], help=help_strings['experiment'])
     parser.add_argument('concurrency', type=str, choices=['high', 'low'], help=help_strings['concurrency'])
+    parser.add_argument('isolation', type=str, choices=['ru', 'rc', 'rr', 's'], help=help_strings['isolation'])
     parser.add_argument('mpl', type=int, help=help_strings['mpl'])
     parser.add_argument('--config_path', type=str, default='config', help=help_strings['config_path'])
     c_args = parser.parse_args()
@@ -207,5 +263,8 @@ if __name__ == '__main__':
     # Run our experiments. Each experiment is a function of MPL.
     with open(c_args.config_path + '/general.json', 'r') as general_config_file:
         general_json = json.load(general_config_file)
-    print(f"Running: experiment [{c_args.experiment}], {c_args.concurrency} concurrency, MPL {c_args.mpl}.")
-    runner(c_args.config_path, general_json, c_args.mpl)
+    print(f"Running: experiment [{c_args.experiment}], "
+          f"{c_args.concurrency} concurrency, "
+          f"MPL {c_args.mpl}, "
+          f"Isolation {c_args.isolation}")
+    runner(c_args.config_path, general_json, c_args.mpl, c_args.isolation)

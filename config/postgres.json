@@ -2,6 +2,5 @@
   "user": "postgres",
   "password": "FrappuccinoAppleData2",
   "host": "localhost",
-  "port": "5432",
   "database": "tippers"
 }

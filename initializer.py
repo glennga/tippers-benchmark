@@ -18,8 +18,7 @@ def initialize_postgres(config_directory: str) -> None:
         postgres_conn_1 = get_postgres_connection(
             user=postgres_json['user'],
             password=postgres_json['password'],
-            host=postgres_json['host'],
-            port=int(postgres_json['port'])
+            host=postgres_json['host']
         )
         postgres_conn_1.autocommit = True
         postgres_conn_1.cursor().execute(f""" CREATE DATABASE {postgres_json['database']};""")
@@ -33,7 +32,6 @@ def initialize_postgres(config_directory: str) -> None:
             user=postgres_json['user'],
             password=postgres_json['password'],
             host=postgres_json['host'],
-            port=int(postgres_json['port']),
             database=postgres_json['database']
         )
         postgres_conn_2.autocommit = True

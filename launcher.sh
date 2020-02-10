@@ -34,7 +34,7 @@ if [[ $@ == *-x* ]]; then
     }
     runner() {
         sleep 0.5 # Wait for observer to run first...
-        python3 runner.py ${database_opt} $1 $2 $3
+        python3 runner.py ${database_opt} $1 $2 $3 $4
     }
 
     # Get our experiment parameters.
@@ -55,8 +55,17 @@ if [[ $@ == *-x* ]]; then
             experiment=$(echo ${experiment#\"})
 
             for mpl in "${testing_mpl[@]}"; do
-                runner ${experiment} ${concurrency} ${mpl} &
-                observer $!
+                runner ${experiment} ${concurrency} ${mpl} ru &
+                observer $! # Read uncommitted.
+
+                runner ${experiment} ${concurrency} ${mpl} rc &
+                observer $! # Read committed.
+
+                runner ${experiment} ${concurrency} ${mpl} rr &
+                observer $! # Repeatable reads.
+
+                runner ${experiment} ${concurrency} ${mpl} s &
+                observer $! # Serializable.
             done
         done
     done

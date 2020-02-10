@@ -14,16 +14,22 @@ system.
 
 3. Download the _reorganized_ project files. From the project source, these have been sorted and modified to work with our simulator.
 
-    **PUT IN NEW LINK HERE**
+    Low Concurrency - https://drive.google.com/open?id=1GrfETEZ1QZeUi-7WRedQtHmHNBsrgeth
+    High Concurrency - https://drive.google.com/open?id=1tfoi5-H4fQMxM07gz2DoQgvkH5QEJjQg 
 
-    Unzip the folder, and copy the sub-folders `data` and `queries` to the `resources` folder. You should now have the following project structure:
+    Place the low-concurrency file in the `resources/data/low_concurrency` folder. Place the high-concurrency file in the `resources/data/high_concurrency` folder. You should now have the following project structure:
     ```
     tippers-benchmark
     |- config
     |- resources
        |- schema
        |- data
-       |- queries
+          |- low_concurrency
+             |- metadata.sql
+             |- sorted_low_concurrency_queries.txt
+          |- high_concurrency
+             |- metadata.sql
+             |- sorted_high_concurrency_queries.txt
     |- ...
     ```
     

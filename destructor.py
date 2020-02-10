@@ -15,8 +15,7 @@ def teardown_postgres(config_directory: str) -> None:
         postgres_conn = get_postgres_connection(
             user=postgres_json['user'],
             password=postgres_json['password'],
-            host=postgres_json['host'],
-            port=int(postgres_json['port'])
+            host=postgres_json['host']
         )
         postgres_conn.autocommit = True
         postgres_cur = postgres_conn.cursor()
