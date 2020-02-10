@@ -46,8 +46,8 @@ if [[ $@ == *-x* ]]; then
     # Get our experiment parameters.
     IFS=', ' read -r -a testing_concurrency \
         <<< "$(sed -n '/testing-concurrency/p' config/general.json | cut -d '[' -f 2 | cut -d ']' -f 1)"
-    IFS=', ' read -r -a testing_experiment \
-        <<< "$(sed -n '/testing-experiment/p' config/general.json | cut -d '[' -f 2 | cut -d ']' -f 1)"
+    IFS=', ' read -r -a testing_workload \
+        <<< "$(sed -n '/testing-workload/p' config/general.json | cut -d '[' -f 2 | cut -d ']' -f 1)"
     IFS=', ' read -r -a testing_mpl \
         <<< "$(sed -n '/testing-mpl/p' config/general.json | cut -d '[' -f 2 | cut -d ']' -f 1)"
 
@@ -56,21 +56,21 @@ if [[ $@ == *-x* ]]; then
         concurrency=$(echo ${concurrency%\"})
         concurrency=$(echo ${concurrency#\"})
 
-        for experiment in "${testing_experiment[@]}"; do
-            experiment=$(echo ${experiment%\"})
-            experiment=$(echo ${experiment#\"})
+        for workload in "${testing_workload[@]}"; do
+            workload=$(echo ${workload%\"})
+            workload=$(echo ${workload#\"})
 
             for mpl in "${testing_mpl[@]}"; do
-                runner ${experiment} ${concurrency} ${mpl} ru &
+                runner ${workload} ${concurrency} ru ${mpl} &
                 observer $! # Read uncommitted.
 
-                runner ${experiment} ${concurrency} ${mpl} rc &
+                runner ${workload} ${concurrency} rc ${mpl} &
                 observer $! # Read committed.
 
-                runner ${experiment} ${concurrency} ${mpl} rr &
+                runner ${workload} ${concurrency} rr ${mpl} &
                 observer $! # Repeatable reads.
 
-                runner ${experiment} ${concurrency} ${mpl} s &
+                runner ${workload} ${concurrency} s ${mpl} &
                 observer $! # Serializable.
             done
         done
