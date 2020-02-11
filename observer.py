@@ -53,18 +53,18 @@ class _Observer(abc.ABC):
 
         if is_oneshot == 'true':
             self.log_action()
-            print("Logging has been performed.")
+            print(f"[{datetime.datetime.now()}][observer.py] Logging has been performed.")
 
         else:
             global _is_logging_active
             logging_thread = threading.Thread(target=self.log_thread_wrapper, args=(frequency, ))
             _is_logging_active = True
             logging_thread.start()
-            input("Press enter to stop logging: ")
+            input("[observer.py] Press enter to stop logging: ")
 
             _is_logging_active = False
             logging_thread.join()
-            print("Logging has been stopped.")
+            print(f"[{datetime.datetime.now()}][observer.py] Logging has been stopped.")
 
 
 # noinspection SqlResolve
@@ -422,7 +422,7 @@ def observer_factory(config_directory: str, observer_option: str, results_file: 
                 database=postgres_json['database']
             )
         except Exception as e:
-            print('Error in creating a PostgreSQL observer: ' + str(e))
+            print(f'[{datetime.datetime.now()}][observer.py] Error in creating a PostgreSQL observer: ' + str(e))
             exit(1)
 
     elif observer_option == 'mysql':
@@ -438,7 +438,7 @@ def observer_factory(config_directory: str, observer_option: str, results_file: 
                 schema=mysql_json['schema']
             )
         except Exception as e:
-            print('Error in creating a MySQL observer: ' + str(e))
+            print(f'[{datetime.datetime.now()}][observer.py] Error in creating a MySQL observer: ' + str(e))
             exit(1)
 
     else:

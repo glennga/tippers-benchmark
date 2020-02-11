@@ -1,5 +1,7 @@
 """ This file is for post-experiment (teardown) and running the drop DDLs on both PostgreSQL and MySQL. """
 from connect import get_mysql_new_connection, get_postgres_new_connection
+
+import datetime
 import argparse
 import json
 
@@ -36,9 +38,11 @@ def teardown_postgres(config_directory: str, is_partial: bool=False) -> None:
 
         postgres_cur.close()
         postgres_conn.close()
+        print(f'[{datetime.datetime.now()}][destructor.py] {"Partial" if is_partial else "Complete"} teardown '
+              f'has been performed for Postgres.')
 
     except Exception as e:
-        print('Error in Postgres teardown: ' + str(e))
+        print(f'[{datetime.datetime.now()}][destructor.py] Error in Postgres teardown: ' + str(e))
         exit(1)
 
 
@@ -67,9 +71,11 @@ def teardown_mysql(config_directory: str, is_partial: bool=False) -> None:
 
         mysql_conn.commit()
         mysql_conn.close()
+        print(f'[{datetime.datetime.now()}][destructor.py] {"Partial" if is_partial else "Complete"} teardown '
+              f'has been performed for MySQL.')
 
     except Exception as e:
-        print('Error in MySQL teardown: ' + str(e))
+        print(f'[{datetime.datetime.now()}][destructor.py] Error in MySQL teardown: ' + str(e))
         exit(1)
 
 
@@ -84,4 +90,4 @@ if __name__ == '__main__':
     else:
         teardown_mysql(args.config_path)
 
-    print(f"[{args.database}] experiment database has been destroyed.")
+    print(f"[{datetime.datetime.now()}][destructor.py] Database {args.database} has been destroyed.")

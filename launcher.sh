@@ -27,11 +27,16 @@ fi
 # Start the experiments.
 if [[ $@ == *-x* ]]; then
     observer() {
+        runner_spawn_date=$(date +"%Y-%m-%d %T.%N")
+        echo "[${runner_spawn_date::-3}][launcher.sh] Runner spawned w/ PID $1."
+
         rm /tmp/observer.fifo 2> /dev/null || true
         mkfifo /tmp/observer.fifo  # We send our input to a named pipe.
         </tmp/observer.fifo tail -c +1 -f | python3 observer.py ${database_opt} false > /dev/null &
         observer_pid=$!
 
+        observer_spawn_date=$(date +"%Y-%m-%d %T.%N")
+        echo "[${observer_spawn_date::-3}][launcher.sh] Observer spawned w/ PID ${observer_pid}."
         wait $1  # Wait for the runner to stop before stopping the observer.
         echo "\n" > /tmp/observer.fifo
         echo > /tmp/observer.fifo

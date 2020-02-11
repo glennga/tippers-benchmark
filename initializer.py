@@ -3,6 +3,7 @@ from connect import get_mysql_new_connection, get_postgres_new_connection
 
 import argparse
 import json
+import datetime
 
 
 def initialize_postgres(config_directory: str, concurrency: str) -> None:
@@ -54,7 +55,7 @@ def initialize_postgres(config_directory: str, concurrency: str) -> None:
         postgres_cur_2.close()
 
     except Exception as e:
-        print('Error in initializing Postgres: ' + str(e))
+        print(f'[{datetime.datetime.now()}][initializer.py] Error in initializing Postgres: ' + str(e))
         exit(1)
 
 
@@ -102,7 +103,7 @@ def initialize_mysql(config_directory: str, concurrency: str) -> None:
         mysql_conn_2.close()
 
     except Exception as e:
-        print('Error in initializing MySQL: ' + str(e))
+        print(f'[{datetime.datetime.now()}][initializer.py] Error in initializing MySQL: ' + str(e))
         exit(1)
 
 
@@ -118,4 +119,5 @@ if __name__ == '__main__':
     else:
         initialize_mysql(args.config_path, args.concurrency)
 
-    print(f"[{args.database}] has been initialized w/ concurrency {args.concurrency}.")
+    print(f"[{datetime.datetime.now()}][initializer.py] Database {args.database} has been initialized "
+          f"w/ concurrency {args.concurrency}.")
