@@ -5,7 +5,7 @@ import argparse
 import json
 
 
-def initialize_postgres(config_directory: str) -> None:
+def initialize_postgres(config_directory: str, concurrency: str) -> None:
     """ https://dev.to/pythonmeister/basic-postgresql-tuning-parameters-281 """
 
     with open(config_directory + '/general.json', 'r') as general_config_file:
@@ -42,6 +42,15 @@ def initialize_postgres(config_directory: str) -> None:
             for statement in create_ddl_file.read().split(';'):
                 if not statement.isspace() and statement != '':
                     postgres_cur_2.execute(statement)
+
+        # Insert the metadata.
+        if concurrency != "none":
+            with open(general_json[f'data-{concurrency}-concurrency-metadata']) as insert_metadata_file:
+                statement = insert_metadata_file.readline()
+                while statement:
+                    postgres_cur_2.execute(statement)
+                    statement = insert_metadata_file.readline()
+
         postgres_cur_2.close()
 
     except Exception as e:
@@ -49,7 +58,7 @@ def initialize_postgres(config_directory: str) -> None:
         exit(1)
 
 
-def initialize_mysql(config_directory: str) -> None:
+def initialize_mysql(config_directory: str, concurrency: str) -> None:
     with open(config_directory + '/general.json', 'r') as general_config_file:
         general_json = json.load(general_config_file)
     with open(config_directory + '/mysql.json', 'r') as mysql_config_file:
@@ -80,6 +89,15 @@ def initialize_mysql(config_directory: str) -> None:
             for statement in create_ddl_file.read().split(';'):
                 if not statement.isspace():
                     mysql_cur_2.execute(statement)
+
+        # Insert the metadata.
+        if concurrency != "none":
+            with open(general_json[f'data-{concurrency}-concurrency-metadata']) as insert_metadata_file:
+                statement = insert_metadata_file.readline()
+                while statement:
+                    mysql_cur_2.execute(statement)
+                    statement = insert_metadata_file.readline()
+
         mysql_conn_2.commit()
         mysql_conn_2.close()
 
@@ -91,12 +109,13 @@ def initialize_mysql(config_directory: str) -> None:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Pre-experiment setup and DDL runner for Postgres and MySQL.')
     parser.add_argument('database', type=str, choices=['postgres', 'mysql'], help='Database to initialize.')
+    parser.add_argument('concurrency', type=str, choices=['low', 'high', 'none'], help='Concurrency to initialize for.')
     parser.add_argument('--config_path', type=str, default='config', help='Location of configuration files.')
     args = parser.parse_args()
 
     if args.database == 'postgres':
-        initialize_postgres(args.config_path)
+        initialize_postgres(args.config_path, args.concurrency)
     else:
-        initialize_mysql(args.config_path)
+        initialize_mysql(args.config_path, args.concurrency)
 
-    print(f"[{args.database}] has been initialized.")
+    print(f"[{args.database}] has been initialized w/ concurrency {args.concurrency}.")

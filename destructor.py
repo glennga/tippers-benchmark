@@ -4,7 +4,7 @@ import argparse
 import json
 
 
-def teardown_postgres(config_directory: str) -> None:
+def teardown_postgres(config_directory: str, is_partial: bool=False) -> None:
     with open(config_directory + '/general.json', 'r') as general_config_file:
         general_json = json.load(general_config_file)
     with open(config_directory + '/postgres.json', 'r') as postgres_config_file:
@@ -26,12 +26,14 @@ def teardown_postgres(config_directory: str) -> None:
             WHERE datname = '{postgres_json['database']}' AND pid <> pg_backend_pid();
         """)
 
-        with open(general_json['drop-ddl']) as create_ddl_file:
+        with open(general_json['drop-ddl'] if not is_partial else general_json['partial-drop-ddl']) as create_ddl_file:
             for statement in create_ddl_file.read().split(';'):
                 if not statement.isspace():
                     postgres_cur.execute(statement)
 
-        postgres_cur.execute(f""" DROP DATABASE IF EXISTS {postgres_json['database']}; """)
+        if not is_partial:
+            postgres_cur.execute(f""" DROP DATABASE IF EXISTS {postgres_json['database']}; """)
+
         postgres_cur.close()
         postgres_conn.close()
 
@@ -40,7 +42,7 @@ def teardown_postgres(config_directory: str) -> None:
         exit(1)
 
 
-def teardown_mysql(config_directory: str) -> None:
+def teardown_mysql(config_directory: str, is_partial: bool=False) -> None:
     with open(config_directory + '/general.json', 'r') as general_config_file:
         general_json = json.load(general_config_file)
     with open(config_directory + '/mysql.json', 'r') as mysql_config_file:
@@ -55,12 +57,14 @@ def teardown_mysql(config_directory: str) -> None:
         )
         mysql_cur = mysql_conn.cursor()
 
-        with open(general_json['drop-ddl']) as create_ddl_file:
+        with open(general_json['drop-ddl'] if not is_partial else general_json['partial-drop-ddl']) as create_ddl_file:
             for statement in create_ddl_file.read().split(';'):
                 if not statement.isspace():
                     mysql_cur.execute(statement)
 
-        mysql_cur.execute(f""" DROP DATABASE IF EXISTS {mysql_json['database']}; """)
+        if not is_partial:
+            mysql_cur.execute(f""" DROP DATABASE IF EXISTS {mysql_json['database']}; """)
+
         mysql_conn.commit()
         mysql_conn.close()
 

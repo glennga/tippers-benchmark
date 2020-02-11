@@ -13,14 +13,14 @@ fi
 # Initialize the databases.
 if [[ $@ == *-n* ]]; then
     mkdir -p results # Assuming that we are starting in the repo directory.
-    python3 initializer.py ${database_opt} 2>/dev/null
+    python3 initializer.py ${database_opt} none 2>/dev/null
     exit 0
 fi
 
 # Re-setup the experiment if specified.
 if [[ $@ == *-r* ]]; then
     python3 destructor.py ${database_opt}
-    python3 initializer.py ${database_opt} 2>/dev/null
+    python3 initializer.py ${database_opt} none 2>/dev/null
     exit 0
 fi
 
@@ -51,10 +51,13 @@ if [[ $@ == *-x* ]]; then
     IFS=', ' read -r -a testing_mpl \
         <<< "$(sed -n '/testing-mpl/p' config/general.json | cut -d '[' -f 2 | cut -d ']' -f 1)"
 
-
     for concurrency in "${testing_concurrency[@]}"; do
         concurrency=$(echo ${concurrency%\"})
         concurrency=$(echo ${concurrency#\"})
+
+        # We must reinitialize for different concurrency levels.
+        python3 destructor.py ${database_opt}
+        python3 initializer.py ${database_opt} ${concurrency}
 
         for workload in "${testing_workload[@]}"; do
             workload=$(echo ${workload%\"})
