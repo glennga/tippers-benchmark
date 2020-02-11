@@ -7,6 +7,7 @@ import json
 import datetime
 import threading
 import time
+import random
 
 # Global variable to be shared between the main thread and logging thread.
 _is_logging_active = False
@@ -396,10 +397,17 @@ class _TimingObserver(_Observer):
             self.log_lock.release()
 
     def end_logging(self) -> None:
-        self.results_cur.execute('commit')
-        self.results_conn.commit()
+        self.log_lock.acquire()
+        try:  # This operation MUST succeed.
+            self.results_cur.execute('commit')
+            self.results_conn.commit()
+        except Exception:
+            time.sleep(random.random())
+            self.results_cur.execute('commit')
+            self.results_conn.commit()
         self.results_conn.close()
         self.is_alive = False
+        self.log_lock.release()
 
 
 def observer_factory(config_directory: str, observer_option: str, results_file: str) -> _Observer:
