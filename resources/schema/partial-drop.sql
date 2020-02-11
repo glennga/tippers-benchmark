@@ -1,0 +1,6 @@
+DROP TABLE IF EXISTS presence CASCADE;
+DROP TABLE IF EXISTS occupancy CASCADE;
+
+DROP TABLE IF EXISTS wemoobservation CASCADE;
+DROP TABLE IF EXISTS wifiapobservation CASCADE;
+DROP TABLE IF EXISTS thermometerobservation CASCADE;

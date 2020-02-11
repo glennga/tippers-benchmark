@@ -1,7 +1,5 @@
 """ This file is the Python entry point to launch an experiment and observer. """
 from simulator import insert_only_workload, query_only_workload, complete_workload
-from connect import get_postgres_new_connection, get_mysql_new_connection
-from initializer import initialize_mysql, initialize_postgres
 from destructor import teardown_mysql, teardown_postgres
 from observer import observer_factory
 
@@ -52,37 +50,15 @@ class _PostgresWorkloadFactory(_GenericWorkloadFactory):
             'is_mysql': False,
         }
 
-    def _insert_metadata(self, _general_json: Dict[str, str], config_path: str):
-        teardown_postgres(config_path)  # Each experiment is contained. We must teardown then initialize again.
-        initialize_postgres(config_path)
-
-        conn = get_postgres_new_connection(
-            user=self.postgres_json['user'],
-            password=self.postgres_json['password'],
-            host=self.postgres_json['host'],
-            database=self.postgres_json['database']
-        )
-        cur = conn.cursor()
-
-        # Insert metadata.
-        with open(_general_json[f'data-{self.concurrency}-concurrency-metadata']) as insert_metadata_file:
-            statement = insert_metadata_file.readline()
-            while statement:
-                cur.execute(statement)
-                statement = insert_metadata_file.readline()
-
-        conn.commit()
-        conn.close()
-
     def _insert_only_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path: str):
-        self._insert_metadata(_general_json, config_path)
+        teardown_postgres(config_path, True)
         insert_only_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
 
     def _query_only_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path: str):
         query_only_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
 
     def _complete_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path: str):
-        self._insert_metadata(_general_json, config_path)
+        teardown_postgres(config_path, True)
         complete_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
 
 
@@ -110,37 +86,15 @@ class _MySQLWorkloadFactory(_GenericWorkloadFactory):
             'is_mysql': True,
         }
 
-    def _insert_metadata(self, _general_json: Dict[str, str], config_path,):
-        teardown_mysql(config_path)  # Each experiment is contained. We must teardown then initialize again.
-        initialize_mysql(config_path)
-
-        conn = get_mysql_new_connection(
-            user=self.mysql_json['username'],
-            password=self.mysql_json['password'],
-            host=self.mysql_json['host'],
-            database=self.mysql_json['database']
-        )
-        conn.autocommit = True
-        cur = conn.cursor()
-
-        # Insert metadata.
-        with open(_general_json[f'data-{self.concurrency}-concurrency-metadata']) as insert_metadata_file:
-            statement = insert_metadata_file.readline()
-            while statement:
-                cur.execute(statement)
-                statement = insert_metadata_file.readline()
-
-        conn.close()
-
     def _insert_only_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path):
-        self._insert_metadata(_general_json, config_path)
+        teardown_mysql(config_path, True)
         insert_only_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
 
     def _query_only_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path):
         query_only_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
 
     def _complete_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path):
-        self._insert_metadata(_general_json, config_path)
+        teardown_mysql(config_path, True)
         complete_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
 
 

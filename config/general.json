@@ -3,6 +3,7 @@
   "timing-db": "results/timing.db",
 
   "create-ddl": "resources/schema/create.sql",
+  "partial-drop-ddl": "resources/schema/partial-drop.sql",
   "drop-ddl": "resources/schema/drop.sql",
 
   "data-low-concurrency-metadata": "resources/data/low_concurrency/metadata.sql",
