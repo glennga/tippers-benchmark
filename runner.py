@@ -43,7 +43,7 @@ class _PostgresWorkloadFactory(_GenericWorkloadFactory):
             'username': self.postgres_json['user'],
             'password': self.postgres_json['password'],
             'database': self.postgres_json['database'],
-            'isolation': {'ru': 0, 'rc': 1, 'rr': 2, 's': 3}[isolation],
+            'isolation': {'ru': 1, 'rc': 2, 'rr': 3, 's': 4}[isolation],
             'multiprogramming': mpl,
             'max_retries': int(_general_json['max-retries']),
             'observer': observer_factory(config_path, 'timing', _general_json['timing-db']),

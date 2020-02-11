@@ -381,22 +381,25 @@ class _TimingObserver(_Observer):
 
         # Create a lock for logging (ugh).
         self.log_lock = threading.Lock()
+        self.is_alive = True
 
     def log_action(self) -> None:  # Ignoring...
         pass
 
     def record_observation(self, start_of_transaction: str, end_of_transaction: str) -> None:
-        self.log_lock.acquire()
-        self.results_cur.execute(f"""
-            INSERT INTO TimingStatistics
-            VALUES ("{start_of_transaction}", "{end_of_transaction}");
-        """)
-        self.log_lock.release()
+        if self.is_alive:
+            self.log_lock.acquire()
+            self.results_cur.execute(f"""
+                INSERT INTO TimingStatistics
+                VALUES ("{start_of_transaction}", "{end_of_transaction}");
+            """)
+            self.log_lock.release()
 
     def end_logging(self) -> None:
         self.results_cur.execute('commit')
         self.results_conn.commit()
         self.results_conn.close()
+        self.is_alive = False
 
 
 def observer_factory(config_directory: str, observer_option: str, results_file: str) -> _Observer:

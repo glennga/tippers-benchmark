@@ -1,6 +1,7 @@
 """ This file holds the simulator code, which will execute the transactions. """
 from connect import get_mysql_new_connection, get_postgres_new_connection
 
+from typing import Dict
 import datetime
 import random
 import threading
@@ -11,8 +12,8 @@ import queue
 import abc
 
 
-# Queue of query sets. Submitted by the workload consumers.
-_query_set_queue = None
+# Queue of statement sets. Submitted by the workload consumers.
+_statement_set_queue = None
 
 
 class _MySQLConsumerThread(threading.Thread):
@@ -27,26 +28,28 @@ class _MySQLConsumerThread(threading.Thread):
         super().__init__()
 
     def run(self) -> None:
-        global _query_set_queue
+        global _statement_set_queue
 
         while True:
-            query_set = _query_set_queue.get()
-            _query_set_queue.task_done()
+            statement_set = _statement_set_queue.get()
+            _statement_set_queue.task_done()
+
+            # We treat the number 0 as our poison pill here.
+            if statement_set == 0:
+                break
 
             # Begin the transaction.
             start_of_transaction = datetime.datetime.now()
-            # transaction_id = random.randint(0, 10000000)
-            # print(f'Transaction {transaction_id} started at {start_of_transaction}.')
             self.conn.start_transaction(isolation_level=self.kwargs['isolation'])
 
             cur = self.conn.cursor()
-            for query in query_set:
+            for statement in statement_set:
                 # Keep track of how often we have to retry a statement.
                 retry_count = 0
 
                 while retry_count < self.kwargs['max_retries']:
                     try:
-                        cur.execute(query)
+                        cur.execute(statement)
                         break
 
                     except:
@@ -55,7 +58,6 @@ class _MySQLConsumerThread(threading.Thread):
 
             # We have finished our transaction. Commit our work.
             end_of_transaction = datetime.datetime.now()
-            # print(f'Transaction {transaction_id} ended at {end_of_transaction}.')
             self.kwargs['observer'].record_observation(start_of_transaction, end_of_transaction)
             self.conn.commit()
 
@@ -75,25 +77,27 @@ class _PostgresConsumerThread(threading.Thread):
         super().__init__()
 
     def run(self) -> None:
-        global _query_set_queue
+        global _statement_set_queue
 
         while True:
-            query_set = _query_set_queue.get()
-            _query_set_queue.task_done()
+            statement_set = _statement_set_queue.get()
+            _statement_set_queue.task_done()
+
+            # We treat the number 0 as our poison pill here.
+            if statement_set == 0:
+                break
 
             # Begin the transaction.
             start_of_transaction = datetime.datetime.now()
-            transaction_id = random.randint(0, 10000000)
-            print(f'Transaction {transaction_id} started at {start_of_transaction}.')
 
             cur = self.conn.cursor()
-            for query in query_set:
+            for statement in statement_set:
                 # Keep track of how often we have to retry a statement.
                 retry_count = 0
 
                 while retry_count < self.kwargs['max_retries']:
                     try:
-                        cur.execute(query)
+                        cur.execute(statement)
                         break
 
                     except:
@@ -102,7 +106,6 @@ class _PostgresConsumerThread(threading.Thread):
 
             # We have finished our transaction. Commit our work.
             end_of_transaction = datetime.datetime.now()
-            print(f'Transaction {transaction_id} ended at {end_of_transaction}.')
             self.kwargs['observer'].record_observation(start_of_transaction, end_of_transaction)
             self.conn.commit()
 
@@ -112,16 +115,27 @@ class _AbstractWorkloadProducer(threading.Thread, abc.ABC):
         self.kwargs = kwargs
         super().__init__()
 
+    @staticmethod
+    def _get_table_name(statement: str):
+        statement_split_by_into = statement.split("INTO")
+        statement_split_by_values = statement_split_by_into[1].split("VALUES")
+
+        table_name = statement_split_by_values[0]
+        table_name = table_name.replace(' ', "")
+
+        return table_name
+
     def run(self) -> None:
-        global _QUEUE_MAXIMUM_SIZE, _query_set_queue
+        global _statement_set_queue
 
         file_handle = open(self.kwargs['filename'], 'r')
-        local_query_buffer, current_timestamp = [], 0
+        local_query_buffer, local_insert_buffer = {}, {}
+        current_timestamp = 0
 
         for i, line in enumerate(file_handle):
             # Parse the query and timestamp.
             record_values = line.strip().split(';')
-            parsed_query = record_values[0] + ';'
+            statement = record_values[0] + ';'
             timestamp = record_values[1]
 
             # For our first run, we define a "current" timestamp.
@@ -130,21 +144,37 @@ class _AbstractWorkloadProducer(threading.Thread, abc.ABC):
 
             if timestamp != current_timestamp:
                 # If we have reached the next timestamp, this signals to us that we need to flush our buffer.
-                for query in local_query_buffer:
-                    _query_set_queue.put([query])
+                for statement_set in list(local_query_buffer.items()) + list(local_insert_buffer.items()):
+                    _statement_set_queue.put(statement_set)
 
                 # Reset our parameters.
                 current_timestamp = timestamp
                 local_query_buffer.clear()
+                local_insert_buffer.clear()
 
-            if self._filter_query(parsed_query):
-                local_query_buffer.append(parsed_query)
+            if "INSERT" in statement:
+                self._aggregate_inserts(statement, local_insert_buffer)
+            else:
+                self._aggregate_selects(statement, local_query_buffer)
 
         file_handle.close()
+
+        # Flush the remaining items in our buffer.
+        for statement_set in list(local_query_buffer.items()) + list(local_insert_buffer.items()):
+            _statement_set_queue.put(statement_set)
+
+        # Issue the poison pill '0'.
+        for _ in range(self.kwargs['multiprogramming'] + 1):
+            _statement_set_queue.put(0)
+
         self.kwargs['observer'].end_logging()
 
     @abc.abstractmethod
-    def _filter_query(self, query):
+    def _aggregate_inserts(self, statement: str, statement_queue: Dict):
+        pass
+
+    @abc.abstractmethod
+    def _aggregate_selects(self, statement: str, statement_queue: Dict):
         pass
 
 
@@ -152,66 +182,89 @@ class _InsertOnlyWorkloadProducer(_AbstractWorkloadProducer):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def _filter_query(self, query):
-        return "INSERT" in query
+    def _aggregate_inserts(self, statement: str, statement_queue: Dict):
+        table_name = self._get_table_name(statement)
+        if table_name in statement_queue:
+            statement_queue[table_name].append(statement)
+        else:
+            statement_queue[table_name] = [statement]
+
+    def _aggregate_selects(self, statement: str, statement_queue: Dict):
+        pass  # We don't consider select statements.
 
 
 class _QueryOnlyWorkloadProducer(_AbstractWorkloadProducer):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def _filter_query(self, query):
-        return "INSERT" not in query
+    def _aggregate_inserts(self, statement: str, statement_queue: Dict):
+        pass  # We don't consider insert statements.
+
+    def _aggregate_selects(self, statement: str, statement_queue: Dict):
+        statement_queue.update({hash(statement): [statement]})
 
 
 class _CompleteWorkloadProducer(_AbstractWorkloadProducer):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def _filter_query(self, query):
-        return True
+    def _aggregate_inserts(self, statement: str, statement_queue: Dict):
+        table_name = self._get_table_name(statement)
+        if table_name in statement_queue:
+            statement_queue[table_name].append(statement)
+        else:
+            statement_queue[table_name] = [statement]
+
+    def _aggregate_selects(self, statement: str, statement_queue: Dict):
+        statement_queue.update({hash(statement): [statement]})
 
 
 def insert_only_workload(**kwargs):
     # Create our shared queue.
-    global _query_set_queue
-    _query_set_queue = queue.Queue(kwargs['multiprogramming'] + 1)
+    global _statement_set_queue
+    _statement_set_queue = queue.Queue(kwargs['multiprogramming'] + 1)
 
     # Spawn our consumer threads. Wait for them to start.
     for _ in range(kwargs['multiprogramming']):
-        _MySQLConsumerThread(**kwargs).start() if kwargs['is_mysql'] else _PostgresConsumerThread().start()
+        _MySQLConsumerThread(**kwargs).start() if kwargs['is_mysql'] else _PostgresConsumerThread(**kwargs).start()
     time.sleep(1)
 
     # Spawn a producer thread.
-    _InsertOnlyWorkloadProducer(**kwargs).start()
+    producer_thread = _InsertOnlyWorkloadProducer(**kwargs)
+    producer_thread.start()
+    producer_thread.join()
 
 
 def query_only_workload(**kwargs):
     # Create our shared queue.
-    global _query_set_queue
-    _query_set_queue = queue.Queue(kwargs['multiprogramming'] + 1)
+    global _statement_set_queue
+    _statement_set_queue = queue.Queue(kwargs['multiprogramming'] + 1)
 
     # Spawn our consumer threads. Wait for them to start.
     for _ in range(kwargs['multiprogramming']):
-        _MySQLConsumerThread(**kwargs).start() if kwargs['is_mysql'] else _PostgresConsumerThread().start()
+        _MySQLConsumerThread(**kwargs).start() if kwargs['is_mysql'] else _PostgresConsumerThread(**kwargs).start()
     time.sleep(1)
 
     # Spawn a producer thread.
-    _QueryOnlyWorkloadProducer(**kwargs).start()
+    producer_thread = _QueryOnlyWorkloadProducer(**kwargs)
+    producer_thread.start()
+    producer_thread.join()
 
 
 def complete_workload(**kwargs):
     # Create our shared queue.
-    global _query_set_queue
-    _query_set_queue = queue.Queue(kwargs['multiprogramming'] + 1)
+    global _statement_set_queue
+    _statement_set_queue = queue.Queue(kwargs['multiprogramming'] + 1)
 
     # Spawn our consumer threads. Wait for them to start.
     for _ in range(kwargs['multiprogramming']):
-        _MySQLConsumerThread(**kwargs).start() if kwargs['is_mysql'] else _PostgresConsumerThread().start()
+        _MySQLConsumerThread(**kwargs).start() if kwargs['is_mysql'] else _PostgresConsumerThread(**kwargs).start()
     time.sleep(1)
 
     # Spawn a producer thread.
-    _CompleteWorkloadProducer(**kwargs).start()
+    producer_thread = _CompleteWorkloadProducer(**kwargs)
+    producer_thread.start()
+    producer_thread.join()
 
 
 if __name__ == '__main__':
@@ -276,7 +329,7 @@ if __name__ == '__main__':
             'username': postgres_json['user'],
             'password': postgres_json['password'],
             'database': postgres_json['database'],
-            'isolation': {'ru': 0, 'rc': 1, 'rr': 2, 's': 3}[c_args.isolation],
+            'isolation': {'ru': 1, 'rc': 2, 'rr': 3, 's': 4}[c_args.isolation],
             'multiprogramming': c_args.multiprogramming,
             'max_retries': int(general_json['max-retries']),
             'observer': _DummyObserver(),
