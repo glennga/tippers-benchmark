@@ -24,7 +24,10 @@ def teardown_postgres(config_directory: str, is_partial: bool = False) -> None:
         with open(general_json['drop-ddl'] if not is_partial else general_json['partial-drop-ddl']) as create_ddl_file:
             for statement in create_ddl_file.read().split(';'):
                 if not statement.isspace():
-                    postgres_cur.execute(statement)
+                    try:
+                        postgres_cur.execute(statement)
+                    except Exception as e:
+                        print(f'[{datetime.datetime.now()}][destructor.py] Error at: {e}')
 
         if not is_partial:
             postgres_cur.execute(f""" DROP DATABASE IF EXISTS {postgres_json['database']}; """)
@@ -57,7 +60,10 @@ def teardown_mysql(config_directory: str, is_partial: bool = False) -> None:
         with open(general_json['drop-ddl'] if not is_partial else general_json['partial-drop-ddl']) as create_ddl_file:
             for statement in create_ddl_file.read().split(';'):
                 if not statement.isspace():
-                    mysql_cur.execute(statement)
+                    try:
+                        mysql_cur.execute(statement)
+                    except Exception as e:
+                        print(f'[{datetime.datetime.now()}][destructor.py] Error at: {e}')
 
         if not is_partial:
             mysql_cur.execute(f""" DROP DATABASE IF EXISTS {mysql_json['database']}; """)
