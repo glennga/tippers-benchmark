@@ -56,7 +56,6 @@ if [[ $@ == *-x* ]]; then
     IFS=', ' read -r -a testing_mpl \
         <<< "$(sed -n '/testing-mpl/p' config/general.json | cut -d '[' -f 2 | cut -d ']' -f 1)"
 
-
     for concurrency in "${testing_concurrency[@]}"; do
         concurrency=$(echo ${concurrency%\"})
         concurrency=$(echo ${concurrency#\"})
@@ -70,17 +69,24 @@ if [[ $@ == *-x* ]]; then
             workload=$(echo ${workload#\"})
 
             for mpl in "${testing_mpl[@]}"; do
-                runner ${workload} ${concurrency} ru ${mpl} &
-                observer $! # Read uncommitted.
+                if [[ ${workload} -eq "c" ]]; then
+                    # For COMPLETE workloads, test all isolation levels.
+                    runner ${workload} ${concurrency} ru ${mpl} &
+                    observer $! # Read uncommitted.
 
-                runner ${workload} ${concurrency} rc ${mpl} &
-                observer $! # Read committed.
+                    runner ${workload} ${concurrency} rc ${mpl} &
+                    observer $! # Read committed.
 
-                runner ${workload} ${concurrency} rr ${mpl} &
-                observer $! # Repeatable reads.
+                    runner ${workload} ${concurrency} rr ${mpl} &
+                    observer $! # Repeatable reads.
 
-                runner ${workload} ${concurrency} s ${mpl} &
-                observer $! # Serializable.
+                    runner ${workload} ${concurrency} s ${mpl} &
+                    observer $! # Serializable.
+                else
+                    # Otherwise, run as serializable.
+                    runner ${workload} ${concurrency} s ${mpl} &
+                    observer $!
+                fi
             done
         done
     done

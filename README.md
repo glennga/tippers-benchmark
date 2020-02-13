@@ -105,3 +105,7 @@ system.
             );
     >> .quit
     ```
+    
+## Common Errors
+
+1. If running `./launcher -r postgres` gives a maximum connection error, restart your Postgres instance and try again.

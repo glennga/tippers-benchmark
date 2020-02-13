@@ -23,11 +23,9 @@ def initialize_postgres(config_directory: str, concurrency: str) -> None:
         )
         postgres_conn_1.autocommit = True
         postgres_conn_1.cursor().execute(f""" CREATE DATABASE {postgres_json['database']};""")
-        postgres_conn_1.cursor().execute(f""" ALTER SYSTEM SET track_io_timing = on; """)
-        postgres_conn_1.cursor().execute(f""" ALTER SYSTEM SET log_statement_stats = on; """)
-        postgres_conn_1.cursor().execute(f""" ALTER SYSTEM SET log_executor_stats = on; """)
         postgres_conn_1.cursor().execute(f""" ALTER SYSTEM SET max_connections = 1000; """)  # Hard coded!!
         postgres_conn_1.cursor().execute(f""" ALTER SYSTEM SET max_prepared_transactions = 1000; """)
+        postgres_conn_1.cursor().execute(f""" SELECT pg_reload_conf(); """)
         postgres_conn_1.close()
 
         # Create the tables.
