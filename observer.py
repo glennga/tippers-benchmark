@@ -469,5 +469,10 @@ if __name__ == '__main__':
     with open(args.config_path + '/general.json', 'r') as general_config_file:
         general_json = json.load(general_config_file)
     observer = observer_factory(args.config_path, args.database, general_json['observation-db'])
-    observer.begin_logging(args.oneshot, general_json['observation-frequency'])
+
+    try:  # Ignore errors that occur here.
+        observer.begin_logging(args.oneshot, general_json['observation-frequency'])
+    except:
+        pass
+
     observer.end_logging()
