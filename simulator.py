@@ -41,7 +41,6 @@ class _MySQLConsumerThread(threading.Thread):
                 break
 
             # Begin the transaction.
-            start_of_transaction = datetime.datetime.now()
             self.conn.start_transaction(isolation_level=self.kwargs['isolation'])
 
             cur = self.conn.cursor()
@@ -58,12 +57,7 @@ class _MySQLConsumerThread(threading.Thread):
                         retry_count += 1  # If we have an error, wait before retrying.
                         time.sleep(random.random())
 
-            try:  # We have finished our transaction. Commit our work. Ignore any errors from our logger.
-                end_of_transaction = datetime.datetime.now()
-                self.kwargs['observer'].record_observation(start_of_transaction, end_of_transaction)
-            except:
-                pass
-
+            # We have finished our transaction. Commit our work.
             self.conn.commit()
 
 
@@ -93,9 +87,8 @@ class _PostgresConsumerThread(threading.Thread):
                 break
 
             # Begin the transaction.
-            start_of_transaction = datetime.datetime.now()
-
             cur = self.conn.cursor()
+
             for statement in statement_set:
                 # Keep track of how often we have to retry a statement.
                 retry_count = 0
@@ -110,8 +103,6 @@ class _PostgresConsumerThread(threading.Thread):
                         time.sleep(random.random())
 
             # We have finished our transaction. Commit our work.
-            end_of_transaction = datetime.datetime.now()
-            self.kwargs['observer'].record_observation(start_of_transaction, end_of_transaction)
             self.conn.commit()
 
 
@@ -175,7 +166,6 @@ class _AbstractWorkloadProducer(threading.Thread, abc.ABC):
         for _ in range(self.kwargs['multiprogramming'] + 1):
             _statement_set_queue.put(0)
 
-        self.kwargs['observer'].end_logging()
         print(f'[{datetime.datetime.now()}][simulator.py] Exiting producer thread.')
         exit(0)
 
@@ -302,15 +292,7 @@ if __name__ == '__main__':
     with open(c_args.config_path + '/general.json', 'r') as general_config_file:
         general_json = json.load(general_config_file)
 
-    # Define a dummy observer.
-    class _DummyObserver:
-        def record_observation(self, start_of_transaction, end_of_transaction):
-            pass
-
-        def end_logging(self):
-            pass
-
-    # Define our arguments to the workloads. We define a dummy observer here.
+    # Define our arguments to the workloads.
     if c_args.database == 'mysql':
         with open(c_args.config_path + '/mysql.json', 'r') as mysql_config_file:
             mysql_json = json.load(mysql_config_file)
@@ -329,7 +311,6 @@ if __name__ == '__main__':
             }[c_args.isolation],
             'multiprogramming': c_args.multiprogramming,
             'max_retries': int(general_json['max-retries']),
-            'observer': _DummyObserver(),
             'is_mysql': True,
         }
     else:
@@ -345,7 +326,6 @@ if __name__ == '__main__':
             'isolation': {'ru': 1, 'rc': 2, 'rr': 3, 's': 4}[c_args.isolation],
             'multiprogramming': c_args.multiprogramming,
             'max_retries': int(general_json['max-retries']),
-            'observer': _DummyObserver(),
             'is_mysql': True,
         }
 

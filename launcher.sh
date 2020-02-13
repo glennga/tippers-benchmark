@@ -83,8 +83,8 @@ if [[ $@ == *-x* ]]; then
                     runner ${workload} ${concurrency} s ${mpl} &
                     observer $! # Serializable.
                 else
-                    # Otherwise, run as serializable.
-                    runner ${workload} ${concurrency} s ${mpl} &
+                    # Otherwise, run as read-committed (default for Postgres, not for MySQL).
+                    runner ${workload} ${concurrency} rc ${mpl} &
                     observer $!
                 fi
             done
