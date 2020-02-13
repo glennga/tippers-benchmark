@@ -1,10 +1,12 @@
 """ This file is for post-experiment (teardown) and running the drop DDLs on both PostgreSQL and MySQL. """
 from connect import get_mysql_new_connection, get_postgres_new_connection
+
+import datetime
 import argparse
 import json
 
 
-def teardown_postgres(config_directory: str, is_partial: bool=False) -> None:
+def teardown_postgres(config_directory: str, is_partial: bool = False) -> None:
     with open(config_directory + '/general.json', 'r') as general_config_file:
         general_json = json.load(general_config_file)
     with open(config_directory + '/postgres.json', 'r') as postgres_config_file:
@@ -19,13 +21,6 @@ def teardown_postgres(config_directory: str, is_partial: bool=False) -> None:
         postgres_conn.autocommit = True
         postgres_cur = postgres_conn.cursor()
 
-        # Kick off every other user to this database.
-        postgres_cur.execute(f"""
-            SELECT pg_terminate_backend(pid) 
-            FROM pg_stat_activity 
-            WHERE datname = '{postgres_json['database']}' AND pid <> pg_backend_pid();
-        """)
-
         with open(general_json['drop-ddl'] if not is_partial else general_json['partial-drop-ddl']) as create_ddl_file:
             for statement in create_ddl_file.read().split(';'):
                 if not statement.isspace():
@@ -36,13 +31,15 @@ def teardown_postgres(config_directory: str, is_partial: bool=False) -> None:
 
         postgres_cur.close()
         postgres_conn.close()
+        print(f'[{datetime.datetime.now()}][destructor.py] {"Partial" if is_partial else "Complete"} teardown '
+              f'has been performed for Postgres.')
 
     except Exception as e:
-        print('Error in Postgres teardown: ' + str(e))
+        print(f'[{datetime.datetime.now()}][destructor.py] Error in Postgres teardown: ' + str(e))
         exit(1)
 
 
-def teardown_mysql(config_directory: str, is_partial: bool=False) -> None:
+def teardown_mysql(config_directory: str, is_partial: bool = False) -> None:
     with open(config_directory + '/general.json', 'r') as general_config_file:
         general_json = json.load(general_config_file)
     with open(config_directory + '/mysql.json', 'r') as mysql_config_file:
@@ -67,9 +64,11 @@ def teardown_mysql(config_directory: str, is_partial: bool=False) -> None:
 
         mysql_conn.commit()
         mysql_conn.close()
+        print(f'[{datetime.datetime.now()}][destructor.py] {"Partial" if is_partial else "Complete"} teardown '
+              f'has been performed for MySQL.')
 
     except Exception as e:
-        print('Error in MySQL teardown: ' + str(e))
+        print(f'[{datetime.datetime.now()}][destructor.py] Error in MySQL teardown: ' + str(e))
         exit(1)
 
 
@@ -84,4 +83,4 @@ if __name__ == '__main__':
     else:
         teardown_mysql(args.config_path)
 
-    print(f"[{args.database}] experiment database has been destroyed.")
+    print(f"[{datetime.datetime.now()}][destructor.py] Database {args.database} has been destroyed.")

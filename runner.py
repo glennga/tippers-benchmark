@@ -7,6 +7,7 @@ from typing import Callable, Dict
 import argparse
 import json
 import abc
+import datetime
 
 
 class _GenericWorkloadFactory(abc.ABC):
@@ -135,8 +136,8 @@ if __name__ == '__main__':
     # Run our workload. Each experiment is a function of MPL.
     with open(c_args.config_path + '/general.json', 'r') as general_config_file:
         general_json = json.load(general_config_file)
-    print(f"Running: Workload [{c_args.workload}], "
-          f"{c_args.concurrency} Concurrency, "
-          f"MPL {c_args.multiprogramming}, "
-          f"Isolation {c_args.isolation}")
+    print(f"[{datetime.datetime.now()}][runner.py] Workload ({c_args.workload}), "
+          f"Concurrency ({c_args.concurrency}), "
+          f"MPL ({c_args.multiprogramming}), "
+          f"Isolation ({c_args.isolation})")
     runner(c_args.isolation, c_args.multiprogramming, general_json, c_args.config_path)

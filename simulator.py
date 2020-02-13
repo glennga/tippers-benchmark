@@ -24,8 +24,10 @@ class _MySQLConsumerThread(threading.Thread):
             host=kwargs['hostname'],
             database=kwargs['database']
         )
+        self.conn.autocommit = False
+
         self.kwargs = kwargs
-        super().__init__()
+        super().__init__(daemon=True)
 
     def run(self) -> None:
         global _statement_set_queue
@@ -56,9 +58,12 @@ class _MySQLConsumerThread(threading.Thread):
                         retry_count += 1  # If we have an error, wait before retrying.
                         time.sleep(random.random())
 
-            # We have finished our transaction. Commit our work.
-            end_of_transaction = datetime.datetime.now()
-            self.kwargs['observer'].record_observation(start_of_transaction, end_of_transaction)
+            try:  # We have finished our transaction. Commit our work. Ignore any errors from our logger.
+                end_of_transaction = datetime.datetime.now()
+                self.kwargs['observer'].record_observation(start_of_transaction, end_of_transaction)
+            except:
+                pass
+
             self.conn.commit()
 
 
@@ -132,6 +137,7 @@ class _AbstractWorkloadProducer(threading.Thread, abc.ABC):
         local_query_buffer, local_insert_buffer = {}, {}
         current_timestamp = 0
 
+        print(f'[{datetime.datetime.now()}][simulator.py] Starting to parse file.')
         for i, line in enumerate(file_handle):
             # Parse the query and timestamp.
             record_values = line.strip().split(';')
@@ -158,16 +164,20 @@ class _AbstractWorkloadProducer(threading.Thread, abc.ABC):
                 self._aggregate_selects(statement, local_query_buffer)
 
         file_handle.close()
+        print(f'[{datetime.datetime.now()}][simulator.py] File is finished being parsed.')
 
         # Flush the remaining items in our buffer.
         for statement_set in list(local_query_buffer.items()) + list(local_insert_buffer.items()):
             _statement_set_queue.put(statement_set)
 
         # Issue the poison pill '0'.
+        print(f'[{datetime.datetime.now()}][simulator.py] Issuing poison pill to consumers.')
         for _ in range(self.kwargs['multiprogramming'] + 1):
             _statement_set_queue.put(0)
 
         self.kwargs['observer'].end_logging()
+        print(f'[{datetime.datetime.now()}][simulator.py] Exiting producer thread.')
+        exit(0)
 
     @abc.abstractmethod
     def _aggregate_inserts(self, statement: str, statement_queue: Dict):
@@ -233,6 +243,7 @@ def insert_only_workload(**kwargs):
     producer_thread = _InsertOnlyWorkloadProducer(**kwargs)
     producer_thread.start()
     producer_thread.join()
+    print(f'[{datetime.datetime.now()}][simulator.py] Exiting simulator.')
 
 
 def query_only_workload(**kwargs):
@@ -249,6 +260,7 @@ def query_only_workload(**kwargs):
     producer_thread = _QueryOnlyWorkloadProducer(**kwargs)
     producer_thread.start()
     producer_thread.join()
+    print(f'[{datetime.datetime.now()}][simulator.py] Exiting simulator.')
 
 
 def complete_workload(**kwargs):
@@ -265,6 +277,7 @@ def complete_workload(**kwargs):
     producer_thread = _CompleteWorkloadProducer(**kwargs)
     producer_thread.start()
     producer_thread.join()
+    print(f'[{datetime.datetime.now()}][simulator.py] Exiting simulator.')
 
 
 if __name__ == '__main__':
@@ -337,7 +350,7 @@ if __name__ == '__main__':
         }
 
     # Run the experiments.
-    print(f'Using arguments: {workload_arguments}')
+    print(f'[{datetime.datetime.now()}][simulator.py] Using arguments: {workload_arguments}')
     if c_args.workload == 'i':
         insert_only_workload(**workload_arguments)
     elif c_args.workload == 'q':
