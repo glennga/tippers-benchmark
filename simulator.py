@@ -150,8 +150,8 @@ class _AbstractWorkloadProducer(threading.Thread, abc.ABC):
 
             if timestamp != current_timestamp:
                 # If we have reached the next timestamp, this signals to us that we need to flush our buffer.
-                for statement_set in list(local_query_buffer.items()) + list(local_insert_buffer.items()):
-                    _statement_set_queue.put(statement_set)
+                for statement_set_tuple in list(local_query_buffer.items()) + list(local_insert_buffer.items()):
+                    _statement_set_queue.put(statement_set_tuple[1])
 
                 # Reset our parameters.
                 current_timestamp = timestamp
