@@ -1,7 +1,6 @@
 """ This file is the Python entry point to launch an experiment and observer. """
 from simulator import insert_only_workload, query_only_workload, complete_workload
 from destructor import teardown_mysql, teardown_postgres
-from observer import observer_factory
 
 from typing import Callable, Dict
 import argparse
@@ -47,7 +46,6 @@ class _PostgresWorkloadFactory(_GenericWorkloadFactory):
             'isolation': {'ru': 1, 'rc': 2, 'rr': 3, 's': 4}[isolation],
             'multiprogramming': mpl,
             'max_retries': int(_general_json['max-retries']),
-            'observer': observer_factory(config_path, 'timing', _general_json['timing-db']),
             'is_mysql': False,
         }
 
@@ -83,7 +81,6 @@ class _MySQLWorkloadFactory(_GenericWorkloadFactory):
             }[isolation],
             'multiprogramming': mpl,
             'max_retries': int(_general_json['max-retries']),
-            'observer': observer_factory(config_path, 'timing', _general_json['timing-db']),
             'is_mysql': True,
         }
 
