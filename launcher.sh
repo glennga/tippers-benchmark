@@ -69,7 +69,7 @@ if [[ $@ == *-x* ]]; then
             workload=$(echo ${workload#\"})
 
             for mpl in "${testing_mpl[@]}"; do
-                if [[ ${workload} -eq "c" ]]; then
+                if [[ ${workload} == "c" ]]; then
                     # For COMPLETE workloads, test all isolation levels.
                     runner ${workload} ${concurrency} ru ${mpl} &
                     observer $! # Read uncommitted.
