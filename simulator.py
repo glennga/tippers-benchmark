@@ -158,8 +158,8 @@ class _AbstractWorkloadProducer(threading.Thread, abc.ABC):
         print(f'[{datetime.datetime.now()}][simulator.py] File is finished being parsed.')
 
         # Flush the remaining items in our buffer.
-        for statement_set in list(local_query_buffer.items()) + list(local_insert_buffer.items()):
-            _statement_set_queue.put(statement_set)
+        for statement_set_tuple in list(local_query_buffer.items()) + list(local_insert_buffer.items()):
+            _statement_set_queue.put(statement_set_tuple[1])
 
         # Issue the poison pill '0'.
         print(f'[{datetime.datetime.now()}][simulator.py] Issuing poison pill to consumers.')
