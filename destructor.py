@@ -21,6 +21,13 @@ def teardown_postgres(config_directory: str, is_partial: bool = False) -> None:
         postgres_conn.autocommit = True
         postgres_cur = postgres_conn.cursor()
 
+        # Kick off every other user to this database.
+        postgres_cur.execute(f"""
+            SELECT pg_terminate_backend(pid) 
+            FROM pg_stat_activity 
+            WHERE datname = '{postgres_json['database']}' AND pid <> pg_backend_pid();
+        """)
+
         with open(general_json['drop-ddl'] if not is_partial else general_json['partial-drop-ddl']) as create_ddl_file:
             for statement in create_ddl_file.read().split(';'):
                 if not statement.isspace():
