@@ -48,6 +48,8 @@ class _MySQLConsumerThread(threading.Thread):
                 try:
                     for statement in statement_set:
                         cur.execute(statement)
+                        if "select" in statement:
+                            cur.fetchall()
 
                     break
 
@@ -92,7 +94,8 @@ class _PostgresConsumerThread(threading.Thread):
                 try:
                     for statement in statement_set:
                         cur.execute(statement)
-
+                        if "select" in statement:
+                            cur.fetchall()
                     break
 
                 except:
