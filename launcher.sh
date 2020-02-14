@@ -47,6 +47,10 @@ if [[ $@ == *-x* ]]; then
         sleep 0.5 # Wait for observer to run first...
         python3 runner.py ${database_opt} $1 $2 $3 $4
     }
+    restarter() {
+        python3 destructor.py ${database_opt}
+        python3 initializer.py ${database_opt} $1
+    }
 
     # Get our experiment parameters.
     IFS=', ' read -r -a testing_concurrency \
@@ -65,29 +69,34 @@ if [[ $@ == *-x* ]]; then
             workload=$(echo ${workload#\"})
 
             for mpl in "${testing_mpl[@]}"; do
-                # For query-only workloads, do not reset the database.
-                if [[ ${workload} != "q" ]]; then
-                    python3 destructor.py ${database_opt}
-                    python3 initializer.py ${database_opt} ${concurrency}
-                fi
+                if [[ ${workload} == "i" ]]; then
+                    # INSERT-only workloads run at read committed.
+                    restarter ${concurrency}
+                    runner ${workload} ${concurrency} rc ${mpl} &
+                    observer $!
 
-                # For COMPLETE workloads, test all isolation levels.
-                if [[ ${workload} == "c" ]]; then
+                elif [[ ${workload} == "q" ]]; then
+                    # QUERY-only workloads run at read committed. No reset is required.
+                    runner ${workload} ${concurrency} rc ${mpl} &
+                    observer $!
+
+                else
+                    # For COMPLETE workloads, test all isolation levels.
+                    restarter ${concurrency}
                     runner ${workload} ${concurrency} ru ${mpl} &
                     observer $! # Read uncommitted.
 
+                    restarter ${concurrency}
                     runner ${workload} ${concurrency} rc ${mpl} &
                     observer $! # Read committed.
 
+                    restarter ${concurrency}
                     runner ${workload} ${concurrency} rr ${mpl} &
                     observer $! # Repeatable reads.
 
+                    restarter ${concurrency}
                     runner ${workload} ${concurrency} s ${mpl} &
                     observer $! # Serializable.
-                else
-                    # Otherwise, run as read-committed (default for Postgres, not for MySQL).
-                    runner ${workload} ${concurrency} rc ${mpl} &
-                    observer $!
                 fi
             done
         done
