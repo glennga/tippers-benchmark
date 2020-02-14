@@ -1,36 +1,20 @@
-DROP TABLE IF EXISTS presence CASCADE;
-DROP TABLE IF EXISTS occupancy CASCADE;
-
-DROP TABLE IF EXISTS virtual_sensor CASCADE;
-
-DROP TABLE IF EXISTS virtual_sensor_type CASCADE;
-
-DROP TABLE IF EXISTS semantic_observation_type CASCADE;
-
-DROP TABLE IF EXISTS wemoobservation CASCADE;
-DROP TABLE IF EXISTS wifiapobservation CASCADE;
-DROP TABLE IF EXISTS thermometerobservation CASCADE;
-
-DROP TABLE IF EXISTS coverage_infrastructure CASCADE;
-
-DROP TABLE IF EXISTS sensor CASCADE;
-
-DROP TABLE IF EXISTS sensor_type CASCADE;
-
-DROP TABLE IF EXISTS platform CASCADE;
-
-DROP TABLE IF EXISTS user_group_membership CASCADE;
-
-DROP TABLE IF EXISTS user_group CASCADE;
-
-DROP TABLE IF EXISTS users CASCADE;
-
-DROP TABLE IF EXISTS platform_type CASCADE;
-
-DROP TABLE IF EXISTS infrastructure_location CASCADE;
-
-DROP TABLE IF EXISTS infrastructure CASCADE;
-
-DROP TABLE IF EXISTS infrastructure_type CASCADE;
-
-DROP TABLE IF EXISTS location CASCADE;
+drop table if exists presence cascade;
+drop table if exists occupancy cascade;
+drop table if exists virtual_sensor cascade;
+drop table if exists virtual_sensor_type cascade;
+drop table if exists semantic_observation_type cascade;
+drop table if exists wemoobservation cascade;
+drop table if exists wifiapobservation cascade;
+drop table if exists thermometerobservation cascade;
+drop table if exists coverage_infrastructure cascade;
+drop table if exists sensor cascade;
+drop table if exists sensor_type cascade;
+drop table if exists platform cascade;
+drop table if exists user_group_membership cascade;
+drop table if exists user_group cascade;
+drop table if exists users cascade;
+drop table if exists platform_type cascade;
+drop table if exists infrastructure_location cascade;
+drop table if exists infrastructure cascade;
+drop table if exists infrastructure_type cascade;
+drop table if exists location cascade;

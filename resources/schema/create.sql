@@ -1,209 +1,188 @@
-CREATE TABLE location
-(
-    ID varchar(255) NOT NULL,
-    X  float        NOT NULL,
-    Y  float        NOT NULL,
-    Z  float        NOT NULL,
-    PRIMARY KEY (ID)
-);
+create table location (
+  id varchar(255) not null,
+  x float not null,
+  y float not null,
+  z float not null,
+  primary key (id)
+) ;
 
-CREATE TABLE infrastructure_type
-(
-    ID          varchar(255) NOT NULL,
-    DESCRIPTION varchar(255) DEFAULT NULL,
-    NAME        varchar(255) DEFAULT NULL,
-    PRIMARY KEY (ID)
-);
+create table infrastructure_type (
+  id varchar(255) not null,
+  description varchar(255) default null,
+  name varchar(255) default null,
+  primary key (id)
+) ;
 
-CREATE TABLE infrastructure
-(
-    NAME                   varchar(255) DEFAULT NULL,
-    INFRASTRUCTURE_TYPE_ID varchar(255) DEFAULT NULL,
-    ID                     varchar(255) NOT NULL,
-    FLOOR                  integer      NOT NULL,
-    PRIMARY KEY (ID),
-    FOREIGN KEY (INFRASTRUCTURE_TYPE_ID) REFERENCES infrastructure_type (ID)
-);
+create table infrastructure (
+  name varchar(255) default null,
+  infrastructure_type_id varchar(255) default null,
+  id varchar(255) not null,
+  floor integer not null,
+  primary key (id),
+  foreign key (infrastructure_type_id) references infrastructure_type (id)
+) ;
 
-CREATE TABLE infrastructure_location
-(
-    LOCATION_ID       varchar(255) NOT NULL,
-    INFRASTRUCTURE_ID varchar(255) NOT NULL,
-    PRIMARY KEY (LOCATION_ID, INFRASTRUCTURE_ID),
-    FOREIGN KEY (LOCATION_ID) REFERENCES location (ID),
-    FOREIGN KEY (INFRASTRUCTURE_ID) REFERENCES infrastructure (ID)
-);
+create table infrastructure_location (
+  location_id varchar(255) not null,
+  infrastructure_id varchar(255) not null,
+  primary key(location_id, infrastructure_id),
+  foreign key (location_id) references location (id),
+  foreign key (infrastructure_id) references infrastructure (id)
+) ;
 
-CREATE TABLE platform_type
-(
-    ID          varchar(255) NOT NULL,
-    DESCRIPTION varchar(255) DEFAULT NULL,
-    NAME        varchar(255) DEFAULT NULL UNIQUE,
-    PRIMARY KEY (ID)
-);
+create table platform_type (
+  id varchar(255) not null,
+  description varchar(255) default null,
+  name varchar(255) default null unique,
+  primary key (id)
+) ;
 
-CREATE TABLE users
-(
-    EMAIL             varchar(255) DEFAULT NULL UNIQUE,
-    GOOGLE_AUTH_TOKEN varchar(255) DEFAULT NULL,
-    NAME              varchar(255) DEFAULT NULL,
-    ID                varchar(255) NOT NULL,
-    PRIMARY KEY (ID)
-);
+create table users (
+  email varchar(255) default null unique,
+  google_auth_token varchar(255) default null,
+  name varchar(255) default null,
+  id varchar(255) not null,
+  primary key (id)
+ ) ;
 
-CREATE TABLE user_group
-(
-    ID          varchar(255) NOT NULL,
-    DESCRIPTION varchar(255) DEFAULT NULL,
-    NAME        varchar(255) DEFAULT NULL,
-    PRIMARY KEY (ID)
-);
+create table user_group (
+  id varchar(255) not null,
+  description varchar(255) default null,
+  name varchar(255) default null,
+  primary key (id)
+) ;
 
-CREATE TABLE user_group_membership
-(
-    USER_ID       varchar(255) NOT NULL,
-    USER_GROUP_ID varchar(255) NOT NULL,
-    PRIMARY KEY (USER_GROUP_ID, USER_ID),
-    FOREIGN KEY (USER_ID) REFERENCES users (ID),
-    FOREIGN KEY (USER_GROUP_ID) REFERENCES user_group (ID)
-);
+create table user_group_membership (
+  user_id varchar(255) not null,
+  user_group_id varchar(255) not null,
+  primary key (user_group_id, user_id),
+  foreign key (user_id) references users (id),
+  foreign key (user_group_id) references user_group (id)
+) ;
 
-CREATE TABLE platform
-(
-    ID               varchar(255) NOT NULL,
-    NAME             varchar(255) DEFAULT NULL,
-    USER_ID          varchar(255) DEFAULT NULL,
-    PLATFORM_TYPE_ID varchar(255) DEFAULT NULL,
-    HASHED_MAC       varchar(255) DEFAULT NULL,
-    PRIMARY KEY (ID),
-    FOREIGN KEY (USER_ID) REFERENCES users (ID),
-    FOREIGN KEY (PLATFORM_TYPE_ID) REFERENCES platform_type (ID)
-);
+create table platform (
+  id varchar(255) not null,
+  name varchar(255) default null,
+  user_id varchar(255) default null,
+  platform_type_id varchar(255) default null,
+  hashed_mac varchar(255) default null,
+  primary key (id),
+  foreign key (user_id) references users (id),
+  foreign key (platform_type_id) references platform_type (id)
+) ;
 
-CREATE TABLE sensor_type
-(
-    ID                    varchar(255) NOT NULL,
-    DESCRIPTION           varchar(255) DEFAULT NULL,
-    MOBILITY              varchar(255) DEFAULT NULL,
-    NAME                  varchar(255) DEFAULT NULL,
-    CAPTURE_FUNCTIONALITY varchar(255) DEFAULT NULL,
-    PAYLOAD_SCHEMA        varchar(255),
-    PRIMARY KEY (ID)
-);
+create table sensor_type (
+  id varchar(255) not null,
+  description varchar(255) default null,
+  mobility varchar(255) default null,
+  name varchar(255) default null,
+  capture_functionality varchar(255) default null,
+  payload_schema varchar(255),
+  primary key (id)
+) ;
 
-CREATE TABLE sensor
-(
-    ID                varchar(255) NOT NULL,
-    NAME              varchar(255) DEFAULT NULL,
-    INFRASTRUCTURE_ID varchar(255) DEFAULT NULL,
-    USER_ID           varchar(255) DEFAULT NULL,
-    SENSOR_TYPE_ID    varchar(255) DEFAULT NULL,
-    SENSOR_CONFIG     varchar(255) DEFAULT NULL,
-    PRIMARY KEY (ID),
-    FOREIGN KEY (SENSOR_TYPE_ID) REFERENCES sensor_type (ID),
-    FOREIGN KEY (INFRASTRUCTURE_ID) REFERENCES infrastructure (ID),
-    FOREIGN KEY (USER_ID) REFERENCES users (ID)
-);
+create table sensor (
+  id varchar(255) not null,
+  name varchar(255) default null,
+  infrastructure_id varchar(255) default null,
+  user_id varchar(255) default null,
+  sensor_type_id varchar(255) default null,
+  sensor_config varchar(255) default null,
+  primary key (id),
+  foreign key (sensor_type_id) references sensor_type (id),
+  foreign key (infrastructure_id) references infrastructure (id),
+  foreign key (user_id) references users (id)
+) ;
 
-CREATE TABLE coverage_infrastructure
-(
-    SENSOR_ID         varchar(255) NOT NULL,
-    INFRASTRUCTURE_ID varchar(255) NOT NULL,
-    PRIMARY KEY (INFRASTRUCTURE_ID, SENSOR_ID),
-    FOREIGN KEY (INFRASTRUCTURE_ID) REFERENCES infrastructure (ID),
-    FOREIGN KEY (SENSOR_ID) REFERENCES sensor (ID)
-);
+create table coverage_infrastructure (
+  sensor_id varchar(255) not null,
+  infrastructure_id varchar(255) not null,
+  primary key (infrastructure_id, sensor_id),
+  foreign key (infrastructure_id) references infrastructure (id),
+  foreign key (sensor_id) references sensor (id)
+) ;
 
-CREATE TABLE wemoobservation
-(
-    id                varchar(255) NOT NULL,
-    currentMilliWatts integer      DEFAULT NULL,
-    onTodaySeconds    integer      DEFAULT NULL,
-    timeStamp         timestamp    NOT NULL,
-    sensor_id         varchar(255) DEFAULT NULL,
-    PRIMARY KEY (id),
-    FOREIGN KEY (sensor_id) REFERENCES sensor (ID)
-);
+create table wemoobservation (
+  id varchar(255) not null,
+  currentmilliwatts integer default null,
+  ontodayseconds integer default null,
+  timestamp timestamp not null,
+  sensor_id varchar(255) default null,
+  primary key (id),
+  foreign key (sensor_id) references sensor (id)
+) ;
 
-CREATE TABLE wifiapobservation
-(
-    id        varchar(255) NOT NULL,
-    clientId  varchar(255) DEFAULT NULL,
-    timeStamp timestamp    NOT NULL,
-    sensor_id varchar(255) DEFAULT NULL,
-    PRIMARY KEY (id),
-    FOREIGN KEY (sensor_id) REFERENCES sensor (ID)
-);
+create table wifiapobservation (
+  id varchar(255) not null,
+  clientid varchar(255) default null,
+  timestamp timestamp not null,
+  sensor_id varchar(255) default null,
+  primary key (id),
+  foreign key (sensor_id) references sensor (id)
+) ;
 
-CREATE TABLE thermometerobservation
-(
-    id          varchar(255) NOT NULL,
-    temperature integer      DEFAULT NULL,
-    timeStamp   timestamp    NOT NULL,
-    sensor_id   varchar(255) DEFAULT NULL,
-    PRIMARY KEY (id),
-    FOREIGN KEY (sensor_id) REFERENCES sensor (ID)
-);
+create table thermometerobservation (
+  id varchar(255) not null,
+  temperature integer default null,
+  timestamp timestamp not null,
+  sensor_id varchar(255) default null,
+  primary key (id),
+  foreign key (sensor_id) references sensor (id)
+) ;
 
-CREATE TABLE semantic_observation_type
-(
-    ID          varchar(255) NOT NULL,
-    DESCRIPTION varchar(255) DEFAULT NULL,
-    NAME        varchar(255) DEFAULT NULL,
-    PRIMARY KEY (ID)
-);
+create table semantic_observation_type (
+  id varchar(255) not null,
+  description varchar(255) default null,
+  name varchar(255) default null,
+  primary key (id)
+) ;
 
-CREATE TABLE virtual_sensor_type
-(
-    ID                           varchar(255) NOT NULL,
-    NAME                         varchar(255) DEFAULT NULL,
-    DESCRIPTION                  varchar(255) DEFAULT NULL,
-    INPUT_TYPE_ID                varchar(255) DEFAULT NULL,
-    SEMANTIC_OBSERVATION_TYPE_ID varchar(255) DEFAULT NULL,
-    PRIMARY KEY (ID),
-    FOREIGN KEY (INPUT_TYPE_ID) REFERENCES sensor_type (ID),
-    FOREIGN KEY (SEMANTIC_OBSERVATION_TYPE_ID) REFERENCES semantic_observation_type (ID)
-);
+create table virtual_sensor_type (
+  id varchar(255) not null,
+  name varchar(255) default null,
+  description varchar(255) default null,
+  input_type_id varchar(255) default null,
+  semantic_observation_type_id varchar(255) default null,
+  primary key (id),
+  foreign key (input_type_id) references sensor_type (id),
+  foreign key (semantic_observation_type_id) references semantic_observation_type (id)
+) ;
 
-CREATE TABLE virtual_sensor
-(
-    ID           varchar(255) NOT NULL,
-    NAME         varchar(255) DEFAULT NULL,
-    DESCRIPTION  varchar(255) DEFAULT NULL,
-    LANGUAGE     varchar(255) DEFAULT NULL,
-    PROJECT_NAME varchar(255) DEFAULT NULL,
-    TYPE_ID      varchar(255) DEFAULT NULL,
-    PRIMARY KEY (ID),
-    FOREIGN KEY (TYPE_ID) REFERENCES virtual_sensor_type (ID)
-);
+create table virtual_sensor (
+  id varchar(255) not null,
+  name varchar(255) default null,
+  description varchar(255) default null,
+  language varchar(255) default null,
+  project_name varchar(255) default null,
+  type_id varchar(255) default null,
+  primary key (id),
+  foreign key (type_id) references virtual_sensor_type (id)
+) ;
 
-CREATE TABLE occupancy
-(
-    id                 varchar(255) NOT NULL,
-    semantic_entity_id varchar(255) NOT NULL,
-    occupancy          integer      DEFAULT NULL,
-    timeStamp          timestamp    NOT NULL,
-    virtual_sensor_id  varchar(255) DEFAULT NULL,
-    PRIMARY KEY (id),
-    FOREIGN KEY (virtual_sensor_id) REFERENCES virtual_sensor (ID),
-    FOREIGN KEY (semantic_entity_id) REFERENCES infrastructure (ID)
-);
+create table occupancy (
+  id varchar(255) not null,
+  semantic_entity_id varchar(255) not null,
+  occupancy integer default null,
+  timestamp timestamp not null,
+  virtual_sensor_id varchar(255) default null,
+  primary key (id),
+  foreign key (virtual_sensor_id) references virtual_sensor (id),
+  foreign key (semantic_entity_id) references infrastructure (id)
+) ;
 
-CREATE TABLE presence
-(
-    id                 varchar(255) NOT NULL,
-    semantic_entity_id varchar(255) NOT NULL,
-    location           varchar(255) DEFAULT NULL,
-    timeStamp          timestamp    NOT NULL,
-    virtual_sensor_id  varchar(255) DEFAULT NULL,
-    PRIMARY KEY (id),
-    FOREIGN KEY (virtual_sensor_id) REFERENCES virtual_sensor (ID),
-    FOREIGN KEY (semantic_entity_id) REFERENCES users (ID)
-);
+create table presence (
+  id varchar(255) not null,
+  semantic_entity_id varchar(255) not null,
+  location varchar(255) default null,
+  timestamp timestamp not null,
+  virtual_sensor_id varchar(255) default null,
+  primary key (id),
+  foreign key (virtual_sensor_id) references virtual_sensor (id),
+  foreign key (semantic_entity_id) references users (id)
+) ;
 
-CREATE INDEX wifi_timestamp_idx ON wifiapobservation (timeStamp);
-CREATE INDEX wemo_timestamp_idx ON wemoobservation (timeStamp);
-CREATE INDEX temp_timestamp_idx ON thermometerobservation (timeStamp);
-
-CREATE INDEX presence_timestamp_idx ON presence (timeStamp);
-CREATE INDEX occupancy_timestamp_idx ON occupancy (timeStamp);
+create index wifi_timestamp_idx on wifiapobservation(timestamp);
+create index wemo_timestamp_idx on wemoobservation(timestamp);
+create index temp_timestamp_idx on thermometerobservation(timestamp);
+create index presence_timestamp_idx on presence(timestamp);
+create index occupancy_timestamp_idx on occupancy(timestamp);

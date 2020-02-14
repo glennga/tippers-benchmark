@@ -1,6 +1,5 @@
-TRUNCATE TABLE presence CASCADE;
-TRUNCATE TABLE occupancy CASCADE;
-
-TRUNCATE TABLE wemoobservation CASCADE;
-TRUNCATE TABLE wifiapobservation CASCADE;
-TRUNCATE TABLE thermometerobservation CASCADE;
+truncate table presence cascade;
+truncate table occupancy cascade;
+truncate table wemoobservation cascade;
+truncate table wifiapobservation cascade;
+truncate table thermometerobservation cascade;
