@@ -299,7 +299,7 @@ if __name__ == '__main__':
             mysql_json = json.load(mysql_config_file)
 
         workload_arguments = {
-            'filename': general_json[f'data-{c_args.concurrency}-concurrency-workload'],
+            'filename': general_json[f'{c_args.concurrency}-concurrency-mysql-workload'],
             'hostname': mysql_json['host'],
             'username': mysql_json['username'],
             'password': mysql_json['password'],
@@ -318,7 +318,7 @@ if __name__ == '__main__':
             postgres_json = json.load(postgres_config_file)
 
         workload_arguments = {
-            'filename': general_json[f'data-{c_args.concurrency}-concurrency-workload'],
+            'filename': general_json[f'{c_args.concurrency}-concurrency-postgres-workload'],
             'hostname': postgres_json['host'],
             'username': postgres_json['user'],
             'password': postgres_json['password'],

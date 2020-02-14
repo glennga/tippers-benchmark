@@ -6,10 +6,12 @@
   "partial-drop-ddl": "resources/schema/partial-drop.sql",
   "drop-ddl": "resources/schema/drop.sql",
 
-  "data-low-concurrency-metadata": "resources/data/low_concurrency/metadata.sql",
-  "data-low-concurrency-workload": "resources/data/low_concurrency/workload.txt",
-  "data-high-concurrency-metadata": "resources/data/high_concurrency/metadata.sql",
-  "data-high-concurrency-workload": "resources/data/high_concurrency/workload.txt",
+  "low-concurrency-metadata": "resources/data/low_concurrency/metadata.sql",
+  "low-concurrency-mysql-workload": "resources/data/low_concurrency/mysql.workload",
+  "low-concurrency-postgres-workload": "resources/data/low_concurrency/postgres.workload",
+  "high-concurrency-metadata": "resources/data/high_concurrency/metadata.sql",
+  "high-concurrency-mysql-workload": "resources/data/high_concurrency/mysql.workload",
+  "high-concurrency-postgres-workload": "resources/data/high_concurrency/postgres.workload",
 
   "observation-frequency": 0.05,
 

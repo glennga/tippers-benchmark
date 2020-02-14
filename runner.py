@@ -37,7 +37,7 @@ class _PostgresWorkloadFactory(_GenericWorkloadFactory):
 
     def _generate_workload_arguments(self, isolation: str, mpl: int, _general_json: Dict[str, str]):
         return {
-            'filename': _general_json[f'data-{self.concurrency}-concurrency-workload'],
+            'filename': _general_json[f'{self.concurrency}-concurrency-postgres-workload'],
             'hostname': self.postgres_json['host'],
             'username': self.postgres_json['user'],
             'password': self.postgres_json['password'],
@@ -64,7 +64,7 @@ class _MySQLWorkloadFactory(_GenericWorkloadFactory):
 
     def _generate_workload_arguments(self, isolation: str, mpl: int, _general_json: Dict[str, str]):
         return {
-            'filename': _general_json[f'data-{self.concurrency}-concurrency-workload'],
+            'filename': _general_json[f'{self.concurrency}-concurrency-mysql-workload'],
             'hostname': self.mysql_json['host'],
             'username': self.mysql_json['username'],
             'password': self.mysql_json['password'],

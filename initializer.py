@@ -44,7 +44,7 @@ def initialize_postgres(config_directory: str, concurrency: str) -> None:
 
         # Insert the metadata.
         if concurrency != "none":
-            with open(general_json[f'data-{concurrency}-concurrency-metadata']) as insert_metadata_file:
+            with open(general_json[f'{concurrency}-concurrency-metadata']) as insert_metadata_file:
                 statement = insert_metadata_file.readline()
                 while statement:
                     postgres_cur_2.execute(statement)
@@ -91,7 +91,7 @@ def initialize_mysql(config_directory: str, concurrency: str) -> None:
 
         # Insert the metadata.
         if concurrency != "none":
-            with open(general_json[f'data-{concurrency}-concurrency-metadata']) as insert_metadata_file:
+            with open(general_json[f'{concurrency}-concurrency-metadata']) as insert_metadata_file:
                 statement = insert_metadata_file.readline()
                 while statement:
                     mysql_cur_2.execute(statement)
