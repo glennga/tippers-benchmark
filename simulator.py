@@ -111,8 +111,8 @@ class _AbstractWorkloadProducer(threading.Thread, abc.ABC):
 
     @staticmethod
     def _get_table_name(statement: str):
-        statement_split_by_into = statement.split("INTO")
-        statement_split_by_values = statement_split_by_into[1].split("VALUES")
+        statement_split_by_into = statement.split("into")
+        statement_split_by_values = statement_split_by_into[1].split("values")
 
         table_name = statement_split_by_values[0]
         table_name = table_name.replace(' ', "")
@@ -147,7 +147,7 @@ class _AbstractWorkloadProducer(threading.Thread, abc.ABC):
                 local_query_buffer.clear()
                 local_insert_buffer.clear()
 
-            if "INSERT" in statement:
+            if "insert" in statement:
                 self._aggregate_inserts(statement, local_insert_buffer)
             else:
                 self._aggregate_selects(statement, local_query_buffer)
