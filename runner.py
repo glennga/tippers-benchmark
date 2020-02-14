@@ -1,6 +1,5 @@
 """ This file is the Python entry point to launch an experiment and observer. """
 from simulator import insert_only_workload, query_only_workload, complete_workload
-from destructor import teardown_mysql, teardown_postgres
 
 from typing import Callable, Dict
 import datetime
@@ -36,7 +35,7 @@ class _PostgresWorkloadFactory(_GenericWorkloadFactory):
         self.postgres_json = postgres_json
         self.concurrency = concurrency
 
-    def _generate_workload_arguments(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path: str):
+    def _generate_workload_arguments(self, isolation: str, mpl: int, _general_json: Dict[str, str]):
         return {
             'filename': _general_json[f'data-{self.concurrency}-concurrency-workload'],
             'hostname': self.postgres_json['host'],
@@ -45,18 +44,17 @@ class _PostgresWorkloadFactory(_GenericWorkloadFactory):
             'database': self.postgres_json['database'],
             'isolation': {'ru': 1, 'rc': 2, 'rr': 3, 's': 4}[isolation],
             'multiprogramming': mpl,
-            'max_retries': int(_general_json['max-retries']),
             'is_mysql': False,
         }
 
     def _insert_only_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path: str):
-        insert_only_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
+        insert_only_workload(**self._generate_workload_arguments(isolation, mpl, _general_json))
 
     def _query_only_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path: str):
-        query_only_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
+        query_only_workload(**self._generate_workload_arguments(isolation, mpl, _general_json))
 
     def _complete_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path: str):
-        complete_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
+        complete_workload(**self._generate_workload_arguments(isolation, mpl, _general_json))
 
 
 class _MySQLWorkloadFactory(_GenericWorkloadFactory):
@@ -64,7 +62,7 @@ class _MySQLWorkloadFactory(_GenericWorkloadFactory):
         self.mysql_json = mysql_json
         self.concurrency = concurrency
 
-    def _generate_workload_arguments(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path: str):
+    def _generate_workload_arguments(self, isolation: str, mpl: int, _general_json: Dict[str, str]):
         return {
             'filename': _general_json[f'data-{self.concurrency}-concurrency-workload'],
             'hostname': self.mysql_json['host'],
@@ -78,18 +76,17 @@ class _MySQLWorkloadFactory(_GenericWorkloadFactory):
                 's': 'SERIALIZABLE'
             }[isolation],
             'multiprogramming': mpl,
-            'max_retries': int(_general_json['max-retries']),
             'is_mysql': True,
         }
 
     def _insert_only_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path):
-        insert_only_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
+        insert_only_workload(**self._generate_workload_arguments(isolation, mpl, _general_json))
 
     def _query_only_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path):
-        query_only_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
+        query_only_workload(**self._generate_workload_arguments(isolation, mpl, _general_json))
 
     def _complete_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path):
-        complete_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
+        complete_workload(**self._generate_workload_arguments(isolation, mpl, _general_json))
 
 
 if __name__ == '__main__':

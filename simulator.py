@@ -41,21 +41,20 @@ class _MySQLConsumerThread(threading.Thread):
                 break
 
             # Begin the transaction.
-            self.conn.start_transaction(isolation_level=self.kwargs['isolation'])
+            while True:
+                self.conn.start_transaction(isolation_level=self.kwargs['isolation'])
+                cur = self.conn.cursor()
 
-            cur = self.conn.cursor()
-            for statement in statement_set:
-                # Keep track of how often we have to retry a statement.
-                retry_count = 0
-
-                while retry_count < self.kwargs['max_retries']:
-                    try:
+                try:
+                    for statement in statement_set:
                         cur.execute(statement)
-                        break
 
-                    except:
-                        retry_count += 1  # If we have an error, wait before retrying.
-                        time.sleep(random.random())
+                    break
+
+                except:
+                    # If we have an error, wait before retrying.
+                    self.conn.rollback()
+                    time.sleep(random.random())
 
             # We have finished our transaction. Commit our work.
             self.conn.commit()
@@ -87,20 +86,19 @@ class _PostgresConsumerThread(threading.Thread):
                 break
 
             # Begin the transaction.
-            cur = self.conn.cursor()
+            while True:
+                cur = self.conn.cursor()
 
-            for statement in statement_set:
-                # Keep track of how often we have to retry a statement.
-                retry_count = 0
-
-                while retry_count < self.kwargs['max_retries']:
-                    try:
+                try:
+                    for statement in statement_set:
                         cur.execute(statement)
-                        break
 
-                    except:
-                        retry_count += 1  # If we have an error, wait before retrying.
-                        time.sleep(random.random())
+                    break
+
+                except:
+                    # If we have an error, wait before retrying.
+                    self.conn.rollback()
+                    time.sleep(random.random())
 
             # We have finished our transaction. Commit our work.
             self.conn.commit()
@@ -310,7 +308,6 @@ if __name__ == '__main__':
                 's': 'SERIALIZABLE'
             }[c_args.isolation],
             'multiprogramming': c_args.multiprogramming,
-            'max_retries': int(general_json['max-retries']),
             'is_mysql': True,
         }
     else:
@@ -325,7 +322,6 @@ if __name__ == '__main__':
             'database': postgres_json['database'],
             'isolation': {'ru': 1, 'rc': 2, 'rr': 3, 's': 4}[c_args.isolation],
             'multiprogramming': c_args.multiprogramming,
-            'max_retries': int(general_json['max-retries']),
             'is_mysql': True,
         }
 

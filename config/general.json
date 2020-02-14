@@ -12,7 +12,6 @@
   "data-high-concurrency-workload": "resources/data/high_concurrency/workload.txt",
 
   "observation-frequency": 0.05,
-  "max-retries": 2,
 
   "testing-mpl": [150, 100, 50, 25, 10, 5],
   "testing-concurrency": ["low", "high"],
