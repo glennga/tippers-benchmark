@@ -50,14 +50,12 @@ class _PostgresWorkloadFactory(_GenericWorkloadFactory):
         }
 
     def _insert_only_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path: str):
-        teardown_postgres(config_path, True)
         insert_only_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
 
     def _query_only_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path: str):
         query_only_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
 
     def _complete_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path: str):
-        teardown_postgres(config_path, True)
         complete_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
 
 
@@ -85,14 +83,12 @@ class _MySQLWorkloadFactory(_GenericWorkloadFactory):
         }
 
     def _insert_only_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path):
-        teardown_mysql(config_path, True)
         insert_only_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
 
     def _query_only_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path):
         query_only_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
 
     def _complete_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path):
-        teardown_mysql(config_path, True)
         complete_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
 
 

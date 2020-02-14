@@ -60,17 +60,19 @@ if [[ $@ == *-x* ]]; then
         concurrency=$(echo ${concurrency%\"})
         concurrency=$(echo ${concurrency#\"})
 
-        # We must reinitialize for different concurrency levels.
-        python3 destructor.py ${database_opt}
-        python3 initializer.py ${database_opt} ${concurrency}
-
         for workload in "${testing_workload[@]}"; do
             workload=$(echo ${workload%\"})
             workload=$(echo ${workload#\"})
 
             for mpl in "${testing_mpl[@]}"; do
+                # For query-only workloads, do not reset the database.
+                if [[ ${workload} != "q" ]]; then
+                    python3 destructor.py ${database_opt}
+                    python3 initializer.py ${database_opt} ${concurrency}
+                fi
+
+                # For COMPLETE workloads, test all isolation levels.
                 if [[ ${workload} == "c" ]]; then
-                    # For COMPLETE workloads, test all isolation levels.
                     runner ${workload} ${concurrency} ru ${mpl} &
                     observer $! # Read uncommitted.
 
