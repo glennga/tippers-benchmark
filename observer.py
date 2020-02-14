@@ -9,9 +9,6 @@ import threading
 import time
 import random
 
-# Global variable to be shared between the main thread and logging thread.
-_is_logging_active = False
-
 
 class _Observer(abc.ABC):
     starting_timestamp = 0
@@ -30,20 +27,12 @@ class _Observer(abc.ABC):
         """ End the logging process (i.e. close all connections). """
         pass
 
-    def log_thread_wrapper(self, frequency: float) -> None:
-        """
-        Method to be called by the threading instance, to log in a loop.
-        :param frequency: Frequency of sampling, measured in actions / minute.
-        """
-        while True:
-            global _is_logging_active
-
-            if not _is_logging_active:
-                break
-
-            else:
-                self.log_action()
-                time.sleep(frequency * 60.)
+    def log_thread_wrapper(self) -> None:
+        """ Super ugly!! Just want to ignore the lost connection errors. """
+        try:
+            self.log_action()
+        except:
+            pass
 
     def begin_logging(self, is_oneshot: str, frequency: str) -> None:
         """
@@ -57,14 +46,9 @@ class _Observer(abc.ABC):
             print(f"[{datetime.datetime.now()}][observer.py] Logging has been performed.")
 
         else:
-            global _is_logging_active
-            logging_thread = threading.Thread(target=self.log_thread_wrapper, args=(frequency, ))
-            _is_logging_active = True
+            logging_thread = threading.Timer(int(float(frequency) * 60.0), self.log_thread_wrapper)
             logging_thread.start()
             input("[observer.py] Press enter to stop logging: ")
-
-            _is_logging_active = False
-            logging_thread.join()
             print(f"[{datetime.datetime.now()}][observer.py] Logging has been stopped.")
 
 
@@ -82,6 +66,7 @@ class _PostgresObserver(_Observer):
         """
         # Establish our Postgres connection. Pass any errors up to the factory method.
         self.postgres_conn = get_postgres_new_connection(user, password, host, database)
+        self.postgres_conn.isolation_level = 1  # <-- Observer shouldn't hold ANY locks.
         self.postgres_conn.autocommit = True
         self.postgres_cur = self.postgres_conn.cursor()
         self.working_database = database
@@ -183,11 +168,11 @@ class _PostgresObserver(_Observer):
         """, list(map(lambda a: [sample_timestamp] + list(a), on_tables_results)))
 
     def end_logging(self) -> None:
+        self.postgres_conn.close()
+
         self.results_cur.execute('commit')
         self.results_conn.commit()
-
         self.results_conn.close()
-        self.postgres_conn.close()
 
 
 # noinspection SqlResolve
@@ -357,11 +342,11 @@ class _MySQLObserver(_Observer):
          """, list(map(lambda a: [sample_timestamp] + list(a), on_lock_results)))
 
     def end_logging(self) -> None:
+        self.mysql_conn.close()
+
         self.results_cur.execute('commit')
         self.results_conn.commit()
-
         self.results_conn.close()
-        self.mysql_conn.close()
 
 
 class _TimingObserver(_Observer):

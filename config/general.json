@@ -14,7 +14,7 @@
   "observation-frequency": 0.05,
   "max-retries": 2,
 
-  "testing-mpl": [1, 5, 25, 50, 100, 150],
+  "testing-mpl": [150, 100, 50, 25, 10, 5],
   "testing-concurrency": ["low", "high"],
   "testing-workload": ["i", "q", "c"]
 }

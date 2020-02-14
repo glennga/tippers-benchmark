@@ -3,11 +3,10 @@ from simulator import insert_only_workload, query_only_workload, complete_worklo
 from destructor import teardown_mysql, teardown_postgres
 
 from typing import Callable, Dict
+import datetime
 import argparse
 import json
 import abc
-import time
-import datetime
 
 
 class _GenericWorkloadFactory(abc.ABC):
@@ -52,7 +51,6 @@ class _PostgresWorkloadFactory(_GenericWorkloadFactory):
 
     def _insert_only_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path: str):
         teardown_postgres(config_path, True)
-        time.sleep(1)
         insert_only_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
 
     def _query_only_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path: str):
@@ -60,7 +58,6 @@ class _PostgresWorkloadFactory(_GenericWorkloadFactory):
 
     def _complete_workload(self, isolation: str, mpl: int, _general_json: Dict[str, str], config_path: str):
         teardown_postgres(config_path, True)
-        time.sleep(1)
         complete_workload(**self._generate_workload_arguments(isolation, mpl, _general_json, config_path))
 
 
