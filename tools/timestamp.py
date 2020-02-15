@@ -1,6 +1,6 @@
 from datetime import datetime
 
-file_name = "launcher-mysql.log"
+file_name = "results/launcher-postgres.log"
 file_r = open(file_name, "r")
 timestamps = []
 
@@ -35,7 +35,7 @@ for line in file_r:
 
 file_r.close()
 
-file_name_2 = "timestamps.csv"
+file_name_2 = "results/postgres-log.csv"
 #print(timestamps)
 file_w = open(file_name_2, "w")
 
