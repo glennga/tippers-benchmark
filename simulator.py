@@ -380,7 +380,7 @@ if __name__ == '__main__':
             'username': postgres_json['user'],
             'password': postgres_json['password'],
             'database': postgres_json['database'],
-            'isolation': {'ru': 1, 'rc': 2, 'rr': 3, 's': 4}[c_args.isolation],
+            'isolation': {'ru': 0, 'rc': 1, 'rr': 2, 's': 3}[c_args.isolation],
             'multiprogramming': c_args.multiprogramming,
             'is_mysql': True,
         }
