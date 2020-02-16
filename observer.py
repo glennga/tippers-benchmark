@@ -210,8 +210,8 @@ class _MySQLObserver(_Observer):
                 measurement_time DATETIME,
                 statements INTEGER,
                 statement_latency TEXT,
-                statement_avg_latency TEXT,
-                statement_lock_latency TEXT,
+                statement_avg_latency TEXT, --
+                statement_lock_latency TEXT, 
                 statement_rows_sent INTEGER,
                 statement_rows_examined INTEGER,
                 statement_rows_affected INTEGER,
@@ -233,10 +233,10 @@ class _MySQLObserver(_Observer):
                 rows_inserted INTEGER,
                 rows_updated INTEGER,
                 rows_deleted INTEGER,
-                io_read_requests INTEGER,
+                io_read_requests INTEGER, --
                 io_read INTEGER,
                 io_read_latency INTEGER,
-                io_write_requests INTEGER,
+                io_write_requests INTEGER,  --
                 io_write INTEGER,
                 io_write_latency INTEGER,
                 io_misc_requests INTEGER,

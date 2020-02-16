@@ -11,7 +11,6 @@ import json
 import queue
 import abc
 
-
 # Queue of statement sets. Submitted by the workload consumers.
 _statement_set_queue = None
 
@@ -26,8 +25,20 @@ class _MySQLConsumerThread(threading.Thread):
         )
         self.conn.autocommit = False
 
+        # Keep track of our average transaction time.
+        self.insert_average, self.select_average = 0, 0
+        self.insert_total, self.select_total = 0, 0
+
         self.kwargs = kwargs
         super().__init__(daemon=True)
+
+    def _update_averages(self, new_delta: float, is_select: bool):
+        if is_select:
+            self.select_average = ((self.select_average * self.select_total) + new_delta) / (self.select_total + 1)
+            self.select_total += 1
+        else:
+            self.insert_average = ((self.insert_average * self.insert_total) + new_delta) / (self.insert_total + 1)
+            self.insert_total += 1
 
     def run(self) -> None:
         global _statement_set_queue
@@ -41,6 +52,9 @@ class _MySQLConsumerThread(threading.Thread):
                 break
 
             # Begin the transaction.
+            start_of_transaction = datetime.datetime.now()
+            is_select = "select" in statement_set[0]
+
             while True:
                 self.conn.start_transaction(isolation_level=self.kwargs['isolation'])
                 cur = self.conn.cursor()
@@ -48,7 +62,7 @@ class _MySQLConsumerThread(threading.Thread):
                 try:
                     for statement in statement_set:
                         cur.execute(statement)
-                        if "select" in statement:
+                        if is_select:
                             cur.fetchall()
 
                     break
@@ -60,6 +74,14 @@ class _MySQLConsumerThread(threading.Thread):
 
             # We have finished our transaction. Commit our work.
             self.conn.commit()
+            end_of_transaction = datetime.datetime.now()
+            self._update_averages((end_of_transaction - start_of_transaction).total_seconds(), is_select)
+
+        print(
+            f'[{datetime.datetime.now()}][simulator.py] '
+            f'INSERT Average Time (s): {self.insert_average}, '
+            f'SELECT Average Time (s): {self.select_average}.'
+        )
 
 
 class _PostgresConsumerThread(threading.Thread):
@@ -73,8 +95,20 @@ class _PostgresConsumerThread(threading.Thread):
         self.conn.autocommit = False
         self.conn.isolation_level = kwargs['isolation']
 
+        # Keep track of our average transaction time.
+        self.insert_average, self.select_average = 0, 0
+        self.insert_total, self.select_total = 0, 0
+
         self.kwargs = kwargs
-        super().__init__()
+        super().__init__(daemon=True)
+
+    def _update_averages(self, new_delta: float, is_select: bool):
+        if is_select:
+            self.select_average = ((self.select_average * self.select_total) + new_delta) / (self.select_total + 1)
+            self.select_total += 1
+        else:
+            self.insert_average = ((self.insert_average * self.insert_total) + new_delta) / (self.insert_total + 1)
+            self.insert_total += 1
 
     def run(self) -> None:
         global _statement_set_queue
@@ -88,13 +122,16 @@ class _PostgresConsumerThread(threading.Thread):
                 break
 
             # Begin the transaction.
+            start_of_transaction = datetime.datetime.now()
+            is_select = "select" in statement_set[0]
+
             while True:
                 cur = self.conn.cursor()
 
                 try:
                     for statement in statement_set:
                         cur.execute(statement)
-                        if "select" in statement:
+                        if is_select:
                             cur.fetchall()
                     break
 
@@ -105,6 +142,14 @@ class _PostgresConsumerThread(threading.Thread):
 
             # We have finished our transaction. Commit our work.
             self.conn.commit()
+            end_of_transaction = datetime.datetime.now()
+            self._update_averages((end_of_transaction - start_of_transaction).total_seconds(), is_select)
+
+        print(
+            f'[{datetime.datetime.now()}][simulator.py] '
+            f'INSERT Average Time (s): {self.insert_average}, '
+            f'SELECT Average Time (s): {self.select_average}.'
+        )
 
 
 class _AbstractWorkloadProducer(threading.Thread, abc.ABC):
@@ -226,14 +271,18 @@ def insert_only_workload(**kwargs):
     _statement_set_queue = queue.Queue(kwargs['multiprogramming'] + 1)
 
     # Spawn our consumer threads. Wait for them to start.
+    consumer_threads = []
     for _ in range(kwargs['multiprogramming']):
-        _MySQLConsumerThread(**kwargs).start() if kwargs['is_mysql'] else _PostgresConsumerThread(**kwargs).start()
+        consumer_threads.append(_MySQLConsumerThread(**kwargs) if kwargs['is_mysql']
+                                else _PostgresConsumerThread(**kwargs))
+        consumer_threads[-1].start()
     time.sleep(1)
 
     # Spawn a producer thread.
     producer_thread = _InsertOnlyWorkloadProducer(**kwargs)
     producer_thread.start()
     producer_thread.join()
+    [c.join() for c in consumer_threads]
     print(f'[{datetime.datetime.now()}][simulator.py] Exiting simulator.')
 
 
@@ -243,14 +292,18 @@ def query_only_workload(**kwargs):
     _statement_set_queue = queue.Queue(kwargs['multiprogramming'] + 1)
 
     # Spawn our consumer threads. Wait for them to start.
+    consumer_threads = []
     for _ in range(kwargs['multiprogramming']):
-        _MySQLConsumerThread(**kwargs).start() if kwargs['is_mysql'] else _PostgresConsumerThread(**kwargs).start()
+        consumer_threads.append(_MySQLConsumerThread(**kwargs) if kwargs['is_mysql']
+                                else _PostgresConsumerThread(**kwargs))
+        consumer_threads[-1].start()
     time.sleep(1)
 
     # Spawn a producer thread.
     producer_thread = _QueryOnlyWorkloadProducer(**kwargs)
     producer_thread.start()
     producer_thread.join()
+    [c.join() for c in consumer_threads]
     print(f'[{datetime.datetime.now()}][simulator.py] Exiting simulator.')
 
 
@@ -260,14 +313,18 @@ def complete_workload(**kwargs):
     _statement_set_queue = queue.Queue(kwargs['multiprogramming'] + 1)
 
     # Spawn our consumer threads. Wait for them to start.
+    consumer_threads = []
     for _ in range(kwargs['multiprogramming']):
-        _MySQLConsumerThread(**kwargs).start() if kwargs['is_mysql'] else _PostgresConsumerThread(**kwargs).start()
+        consumer_threads.append(_MySQLConsumerThread(**kwargs) if kwargs['is_mysql']
+                                else _PostgresConsumerThread(**kwargs))
+        consumer_threads[-1].start()
     time.sleep(1)
 
     # Spawn a producer thread.
     producer_thread = _CompleteWorkloadProducer(**kwargs)
     producer_thread.start()
     producer_thread.join()
+    [c.join() for c in consumer_threads]
     print(f'[{datetime.datetime.now()}][simulator.py] Exiting simulator.')
 
 
@@ -323,7 +380,7 @@ if __name__ == '__main__':
             'username': postgres_json['user'],
             'password': postgres_json['password'],
             'database': postgres_json['database'],
-            'isolation': {'ru': 1, 'rc': 2, 'rr': 3, 's': 4}[c_args.isolation],
+            'isolation': {'ru': 1, 'rc': 1, 'rr': 2, 's': 3}[c_args.isolation],
             'multiprogramming': c_args.multiprogramming,
             'is_mysql': True,
         }
